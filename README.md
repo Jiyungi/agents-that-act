@@ -36,7 +36,7 @@ one step that genuinely needs a human.
               │  ⏸  MANUAL: operator runs the security scan in the editor
    ┌──────────▼───────────────┐   normalize report → SAFE/RISKY verdict,
    │  Upload trigger          │   store report + source snapshot, persist record
-   │  (local agent)           │──────────────► object storage
+   │  (local agent)           │──────────────► Tigris (object storage)
    └──────────┬───────────────┘
               │
    ┌──────────▼───────────┐   verdict card + public link + gallery
@@ -55,55 +55,83 @@ open the operator's editor.
 
 ## Tools and how they're applied
 
-PackGuard is built around three external tools, each doing a job that's core to the
-product rather than bolted on.
+PackGuard is built around three tools — **Opsera**, **Tigris**, and **Daytona** —
+each doing a job that's core to the product, not bolted on.
 
-### Security scanning (DevSecOps agent, via MCP)
+### Opsera — the security-scan engine behind every verdict
 
-This is the engine of the verdict. After the source is safely extracted and opened in
-the editor, the operator triggers a **DevSecOps security-scan agent** (exposed to the
-editor through the Model Context Protocol) that runs static analysis — Semgrep + Gitleaks
-— across the untrusted package source. PackGuard takes that raw output and:
+**Where it's used:** the manual scan step, configured in `.vscode/mcp.json` and
+`.kiro/settings/mcp.json` (server `opsera` → `https://agent.opsera.ai/mcp`); consumed
+by the normalizer in `packguard-agent/src/upload.ts` and the honest-framing copy in
+`shared/framing.ts`.
 
-- **normalizes** it into a fixed report schema (findings with category, file, line,
-  severity, and the offending code snippet),
-- **derives a SAFE / RISKY verdict** from the risk score against a configurable
-  threshold, and
-- **applies fail-safe defaults** so missing data always reads pessimistically (a
-  missing verdict becomes RISKY, a missing score becomes 100) — the scan can never
-  accidentally make a package look safer than it is.
+**How it's used:** Opsera is an AI-powered DevSecOps platform exposed to the editor
+over the **Model Context Protocol (MCP)**. Once the local agent extracts a package into
+`./scan-target/` and opens it in VS Code, the operator runs **`/security-scan`** in
+GitHub Copilot Chat, which invokes Opsera's DevSecOps Security Scan Agent
+(`mcp_opsera_security-scan`). Opsera runs **static analysis (Semgrep + Gitleaks)** over
+the untrusted source and writes a report. PackGuard then:
 
-The scan is a deliberate human action (the agent has no public API/CLI), so PackGuard
-automates everything *around* it and frames the result honestly as automated **static**
-security review, not behavioral malware detection.
+- **normalizes** Opsera's raw output into a fixed `Report_Schema` (each finding carries
+  category, file path, line number, severity, and the offending code snippet),
+- **derives a SAFE / RISKY verdict** by comparing Opsera's risk score against the
+  `RISK_THRESHOLD` (default 50), and
+- **applies fail-safe defaults** so anything Opsera omits reads pessimistically
+  (missing verdict → RISKY, missing score → 100) — the scan can never accidentally make
+  a package look safer than it is.
 
-### Object storage (S3-compatible)
+**Why it's necessary:** Opsera *is* the analysis engine — without it there is no verdict,
+no risk score, and no findings; PackGuard would just be a downloader. It also runs
+**directly in the IDE through MCP** (Opsera has no public API/CLI), which is exactly why
+the architecture has a deliberate human-in-the-loop step instead of a fully programmatic
+call. PackGuard attributes results to Opsera and frames them honestly as automated
+**static** security review, not behavioral malware detection.
 
-Every scan result is durable and shareable because of **globally distributed,
-S3-compatible object storage**. The upload trigger writes three objects per scan under
-name+version keys:
+### Tigris — durable, shareable, S3-compatible storage
 
-- `reports/{name}/{version}/report.json` — the normalized report, served by a
-  **public URL** so anyone can view a verdict without logging in,
+**Where it's used:** the `Storage_Service` and the upload trigger
+(`packguard-agent/src/upload.ts`), configured via the `TIGRIS_*`/`AWS_*` variables in
+`.env.example` (endpoint `https://t3.storage.dev`, bucket `packguard`).
+
+**How it's used:** Tigris is a globally distributed, **S3-compatible** object store, so
+PackGuard talks to it with the standard AWS S3 SDK — the config loader deliberately reads
+the `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_ENDPOINT_URL_S3` variables the
+SDK already understands. On each upload it writes three objects under name+version keys:
+
+- `reports/{name}/{version}/report.json` — the normalized report, served by a Tigris
+  **public URL** so anyone can view a verdict without authenticating,
 - `sources/{name}/{version}/source.tgz` — a snapshot of the exact scanned source,
-- `records/{name}/{version}.json` — the scan record (verdict, score, timestamp,
-  links) that backs the gallery.
+- `records/{name}/{version}.json` — the scan record (verdict, score, timestamp, links)
+  that backs the gallery.
 
-Uploads use bounded retries, and the public URL is minted on upload. This storage is
-what turns a one-off scan into a permanent, linkable, browsable library of vetted
-packages.
+Uploads use bounded retries (max 3 attempts), and the public URL is minted on upload.
 
-### Isolated sandbox execution (feasibility spike)
+**Why it's necessary:** Vercel serverless functions have no persistent disk, so scan
+results need a durable home that lives outside the request lifecycle. Tigris provides
+that, plus the two things the product depends on: **public, no-auth report URLs** (the
+shareable link on every verdict card) and a **listable record set** (the gallery that
+turns one-off scans into a permanent, browsable library of vetted packages). Its
+S3 compatibility means zero custom storage client — the standard SDK just works.
 
-The biggest hardening question for PackGuard is: *can we keep untrusted package code
-off a real machine entirely?* A parallel experiment validated running the fetch **and**
-the security scan inside an **isolated, instantly-created sandbox** instead of locally.
-The result was a documented **YES** — sandbox spin-up, VS Code Remote-SSH, the editor
-chat agent, the security-scan MCP server, and remote OAuth all completed inside the
-sandbox, with npm source fetched and extracted there and never touching the local
-machine. This proves a clear path to running the whole pipeline in throwaway isolation
-(see `daytona-experiment/FEASIBILITY.md` for the step-by-step evidence and the
-local→sandbox swap plan).
+### Daytona — isolated sandbox execution (feasibility spike)
+
+**Where it's used:** the Person C deliverable in `daytona-experiment/`
+(`FEASIBILITY.md`, `fetch-demo.sh`, sample reports).
+
+**How it's used:** Daytona spins up secure, instantly-created, isolated environments for
+running untrusted code. The experiment used the Daytona CLI to create a sandbox, connect
+VS Code over **Remote-SSH**, install GitHub Copilot Chat and the **Opsera MCP server**
+inside it, complete Opsera OAuth remotely, and then fetch + untar an npm package
+(`left-pad`) entirely within the sandbox — with **no `npm install` and no code
+executed**. All five timed steps completed; the conclusion is a documented **YES**.
+
+**Why it's necessary:** PackGuard's whole premise is "inspect without installing," but
+today the fetch + extract still happen on the operator's local machine. Daytona answers
+the key hardening question — *can untrusted package code be kept off a real machine
+entirely?* — and proves a concrete path to running the full fetch → scan pipeline in
+throwaway isolation, so a malicious tarball never touches a real dev box. See
+`daytona-experiment/FEASIBILITY.md` for the step-by-step evidence and the local→Daytona
+fetch-swap plan.
 
 ---
 
@@ -116,7 +144,6 @@ local→sandbox swap plan).
 | `shared/` | Shared TypeScript contracts (scan/report/error types), config loader, package-name validation, test fakes |
 | `web/` | Vite + React frontend — search, verdict card, gallery, honest-framing copy |
 | `daytona-experiment/` | Isolated-sandbox feasibility deliverable + sample scan reports |
-| `pitch/` | Project pitch page |
 
 ---
 
