@@ -25,6 +25,6 @@
       "@shared/*": ["shared/*"]
     }
   },
-  "include": ["shared/**/*", "api/**/*", "packguard-agent/**/*", "web/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+  "include": ["shared/**/*", "api/**/*", "packguard-agent/**/*"],
+  "exclude": ["node_modules", "dist", "web", "**/*.test.ts"]
 }
