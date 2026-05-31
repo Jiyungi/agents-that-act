@@ -197,10 +197,27 @@ export class TigrisStorageService implements StorageService {
     const sourceKey = sourceKeyFor(packageName, version);
     const recordKey = recordKeyFor(packageName, version);
 
+    // Store the NORMALIZED report (conforms to ReportSchema, includes the
+    // derived verdict) at the public report key so the shareable URL + verdict
+    // card render fully. The raw operator bytes are kept alongside for audit.
+    const normalizedBytes = Buffer.from(JSON.stringify(report), "utf8");
+
     // 1) Upload the report (≤3 attempts). On total failure → no record (Req 7.7).
     await withRetries(() =>
-      this.put(reportKey, reportBytes, "application/json", true),
+      this.put(reportKey, normalizedBytes, "application/json", true),
     );
+
+    // 1b) Keep the raw operator report for audit (best-effort, never blocks).
+    try {
+      await this.put(
+        `reports/${encodePackageName(packageName)}/${version}/raw-report`,
+        reportBytes,
+        "application/octet-stream",
+        false,
+      );
+    } catch {
+      // non-fatal
+    }
 
     // 2) Upload the source snapshot (≤3 attempts).
     await withRetries(() =>
