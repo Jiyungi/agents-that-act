@@ -41,17 +41,17 @@ The interface contracts (`Scan_Result_Contract`, `Report_Schema`, upload-trigger
     - Enforce npm naming constraints (non-empty, ≤ 214 chars, permitted characters), support `@scope/name`, and provide encode/decode that round-trips a scoped name to a safe registry/Tigris key.
     - Reject invalid names with `INVALID_PACKAGE_NAME` **before** any registry query.
     - _Requirements: 1.6, 1.7_
-  - [ ]* 2.2 Property test: package-name validation and scoped-name round-trip
+  - [-]* 2.2 Property test: package-name validation and scoped-name round-trip
     - **Property 6: Package-name validation and scoped-name handling**
     - **Validates: Requirements 1.6, 1.7**
   - [x] 2.3 Implement npm resolution in serverless `/api/resolve`
     - Resolve latest (`dist-tags.latest`) when no version given, exact version otherwise; produce `ResolvedPackage` (tarballUrl, integrity); 10s registry timeout.
     - Map failures to `PACKAGE_UNRESOLVED`, `VERSION_UNRESOLVED`, `REGISTRY_UNAVAILABLE` with no partial result.
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.8_
-  - [ ]* 2.4 Property test: version resolution
+  - [-]* 2.4 Property test: version resolution
     - **Property 7: Version resolution**
     - **Validates: Requirements 1.2, 1.3**
-  - [ ]* 2.5 Example tests: resolution error branches
+  - [-]* 2.5 Example tests: resolution error branches
     - Nonexistent package (1.4), nonexistent version (1.5), registry network error / timeout (1.8).
     - _Requirements: 1.4, 1.5, 1.8_
 
@@ -59,7 +59,7 @@ The interface contracts (`Scan_Result_Contract`, `Report_Schema`, upload-trigger
   - [x] 3.1 Implement tarball download from npm metadata
     - Download `.tgz` from the metadata tarball URL within 30s; abort and discard partial bytes on refused/interrupted/non-2xx/timeout (`DOWNLOAD_FAILED`); abort over 100 MB (`DOWNLOAD_TOO_LARGE`); never execute downloaded content.
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
-  - [ ]* 3.2 Integration test: download success and size boundary
+  - [-]* 3.2 Integration test: download success and size boundary
     - Successful download references content (2.1, 2.2); just-over-100 MB aborts (2.4).
     - _Requirements: 2.1, 2.2, 2.4_
 
@@ -105,11 +105,11 @@ The interface contracts (`Scan_Result_Contract`, `Report_Schema`, upload-trigger
     - **Property 8: Scan_Result_Contract completeness**
     - **Validates: Requirements 6.1, 6.2**
 
-- [ ] 7. Local_Fetcher_Agent loopback server and upload trigger
+- [x] 7. Local_Fetcher_Agent loopback server and upload trigger
   - [x] 7.1 Implement the loopback agent server (`127.0.0.1:3939`)
     - `POST /local/fetch` wires resolve input → download → extract → launch → `Scan_Result_Contract`; `GET /local/health` reports `codeCliAvailable`; bind to localhost only; map `FetchErrorType` to HTTP responses.
     - _Requirements: 5.1, 5.2, 6.1, 6.2_
-  - [-] 7.2 Implement the upload-trigger interface (`POST /local/upload`)
+  - [x] 7.2 Implement the upload-trigger interface (`POST /local/upload`)
     - Read `reportPath`, normalize to `Report_Schema`, derive the verdict, hand `Scan_Report` + `Source_Snapshot` to the `Storage_Service`, return success on confirmation; `REPORT_MISSING` guard (no storage call); `UPLOAD_FAILED` retains the report on 30s no-confirm/failure.
     - Builds against the `StorageService` stub from task 1.3 (see Notes); real wiring is task 17.1.
     - _Requirements: 6.3, 6.4, 6.5, 6.6, 6.7_

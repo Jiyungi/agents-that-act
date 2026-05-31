@@ -17,6 +17,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { FetchErrorType } from "@shared/errors";
 import type { ResolvedPackage, ScanResultContract } from "@shared/scan";
 
+import { InMemoryStorageService } from "@shared/testing/storage-fake";
+
 import {
   FETCH_ERROR_STATUS,
   LOOPBACK_HOST,
@@ -326,5 +328,142 @@ describe("createAgentServer (direct, no port bind)", () => {
     expect(agent.activeScans).toBeInstanceOf(Map);
     expect(typeof agent.handleRequest).toBe("function");
     expect(agent.server).toBeDefined();
+  });
+});
+
+describe("POST /local/upload (task 7.2 wiring)", () => {
+  it("uploads a present report → 200 { scanRecord }, calls cleanup, drops the active scan (Reqs 6.3, 6.4)", async () => {
+    const storage = new InMemoryStorageService();
+    let cleanupCalls = 0;
+    const base = await start({
+      storageService: storage,
+      // Inject a report reader + snapshot so no real disk is needed here.
+      readReport: async () => ({
+        exists: true,
+        bytes: Buffer.from(JSON.stringify({ riskScore: 8 })),
+      }),
+      makeSnapshot: async () => Buffer.from("snapshot"),
+    });
+
+    // Register an active scan directly (as /local/fetch would).
+    const uploadId = "upload-123";
+    started!.activeScans.set(uploadId, {
+      contract: SAMPLE_CONTRACT,
+      cleanup: async () => {
+        cleanupCalls += 1;
+      },
+      createdAt: new Date().toISOString(),
+    });
+
+    const res = await fetch(`${base}/local/upload`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ uploadId }),
+    });
+    const json = (await res.json()) as Record<string, unknown>;
+
+    expect(res.status).toBe(200);
+    const scanRecord = json["scanRecord"] as Record<string, unknown>;
+    expect(scanRecord["packageName"]).toBe("left-pad");
+    expect(scanRecord["verdict"]).toBe("SAFE"); // 8 < 50
+    expect(storage.size).toBe(1);
+    expect(cleanupCalls).toBe(1);
+    // The uploadId is consumed so it can't be reused.
+    expect(started!.activeScans.has(uploadId)).toBe(false);
+  });
+
+  it("returns REPORT_MISSING (404) and retains the active scan when no report exists (Req 6.5)", async () => {
+    const storage = new InMemoryStorageService();
+    const base = await start({
+      storageService: storage,
+      readReport: async () => ({ exists: false }),
+    });
+
+    const uploadId = "upload-missing";
+    started!.activeScans.set(uploadId, {
+      contract: SAMPLE_CONTRACT,
+      cleanup: async () => undefined,
+      createdAt: new Date().toISOString(),
+    });
+
+    const res = await fetch(`${base}/local/upload`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ uploadId }),
+    });
+    const json = (await res.json()) as Record<string, unknown>;
+
+    expect(res.status).toBe(404);
+    expect(json["errorType"]).toBe("REPORT_MISSING");
+    expect(storage.size).toBe(0); // storage not called
+    expect(started!.activeScans.has(uploadId)).toBe(true); // retained for retry
+  });
+
+  it("returns UPLOAD_FAILED (502) and keeps the active scan when storage fails (Req 6.6)", async () => {
+    const failingStorage = {
+      uploadScan: async () => {
+        throw new Error("tigris unreachable");
+      },
+      getPublicReportUrl: async () => null,
+      listScans: async () => ({ records: [], partial: false, unavailable: false }),
+    };
+    let cleanupCalls = 0;
+    const base = await start({
+      storageService: failingStorage,
+      readReport: async () => ({
+        exists: true,
+        bytes: Buffer.from(JSON.stringify({ riskScore: 8 })),
+      }),
+      makeSnapshot: async () => Buffer.from("snapshot"),
+    });
+
+    const uploadId = "upload-fail";
+    started!.activeScans.set(uploadId, {
+      contract: SAMPLE_CONTRACT,
+      cleanup: async () => {
+        cleanupCalls += 1;
+      },
+      createdAt: new Date().toISOString(),
+    });
+
+    const res = await fetch(`${base}/local/upload`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ uploadId }),
+    });
+    const json = (await res.json()) as Record<string, unknown>;
+
+    expect(res.status).toBe(502);
+    expect(json["errorType"]).toBe("UPLOAD_FAILED");
+    expect(cleanupCalls).toBe(0); // report retained
+    expect(started!.activeScans.has(uploadId)).toBe(true); // kept for retry
+  });
+
+  it("returns INVALID_IDENTIFIER (404) for an unknown uploadId", async () => {
+    const base = await start({ storageService: new InMemoryStorageService() });
+
+    const res = await fetch(`${base}/local/upload`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ uploadId: "does-not-exist" }),
+    });
+    const json = (await res.json()) as Record<string, unknown>;
+
+    expect(res.status).toBe(404);
+    expect(json["errorType"]).toBe("INVALID_IDENTIFIER");
+  });
+
+  it("returns INVALID_IDENTIFIER (400) for a missing uploadId", async () => {
+    const base = await start({ storageService: new InMemoryStorageService() });
+
+    const res = await fetch(`${base}/local/upload`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const json = (await res.json()) as Record<string, unknown>;
+
+    expect(res.status).toBe(400);
+    expect(json["errorType"]).toBe("INVALID_IDENTIFIER");
   });
 });
