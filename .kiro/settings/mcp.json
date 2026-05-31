@@ -6,7 +6,7 @@
       "oauth": {
         "oauthScopes": []
       },
-      "disabled": true,
+      "disabled": false,
       "autoApprove": []
     }
   }
