@@ -1,0 +1,26 @@
+{
+  "name": "packguard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PackGuard — inspect an npm package for security risks before installing it.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dev": "npm --prefix web run dev",
+    "web:dev": "npm --prefix web run dev",
+    "web:build": "npm --prefix web run build",
+    "web:install": "npm --prefix web install"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "fast-check": "^3.23.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}

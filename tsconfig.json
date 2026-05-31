@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "rootDir": ".",
+    "outDir": "dist",
+    "declaration": true,
+    "sourceMap": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["shared/*"]
+    }
+  },
+  "include": ["shared/**/*", "api/**/*", "packguard-agent/**/*", "web/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+}
