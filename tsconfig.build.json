@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "rootDir": "."
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    ".vercel",
+    "scan-target",
+    "reports",
+    "**/*.test.ts"
+  ]
+}

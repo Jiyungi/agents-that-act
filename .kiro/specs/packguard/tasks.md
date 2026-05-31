@@ -19,32 +19,32 @@ The interface contracts (`Scan_Result_Contract`, `Report_Schema`, upload-trigger
 
 ## Shared Setup & Interface Contracts (do first)
 
-- [ ] 1. Project scaffold and shared interface contracts
-  - [ ] 1.1 Initialize project structure and tooling
+- [x] 1. Project scaffold and shared interface contracts
+  - [x] 1.1 Initialize project structure and tooling
     - Create the single-repo layout: `web/` (Frontend_UI), `api/` (Vercel serverless functions), `packguard-agent/` (local loopback agent), and `shared/` (types).
     - Configure TypeScript, `fast-check`, and a test runner (Vitest), plus npm scripts.
     - Add `.env.example` entries / config loader for `TIGRIS_ENDPOINT`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `TIGRIS_BUCKET`, `RISK_THRESHOLD` (default 50), `LOCAL_AGENT_PORT` (default 3939), `SCAN_TARGET_DIR` (default `./scan-target`), `NPM_REGISTRY_BASE` (default `https://registry.npmjs.org`).
     - _Requirements: 16.1, 16.2_
-  - [ ] 1.2 Define the shared TypeScript contract types (the integration seams)
+  - [x] 1.2 Define the shared TypeScript contract types (the integration seams)
     - `ScanResultContract` (Interface 1); `ReportSchema` with `Verdict`, `Severity`, `Finding` (Data Models, Req 12); `ScanRecord` (Req 7.5); `ResolvedPackage` and `SafeTarLimits`; `GalleryResult` (Interface 5); `FetchErrorType` and `UploadErrorType` enums.
     - These are the agreed stubs Person A and Person B build against.
     - _Requirements: 6.1, 12.1, 12.2, 12.3, 12.6, 12.7, 7.5, 9.1_
-  - [ ] 1.3 Provide shared stubs and fixtures for cross-person integration
+  - [x] 1.3 Provide shared stubs and fixtures for cross-person integration
     - In-memory `StorageService` fake (uploadScan/getPublicReportUrl/listScans), a fake `Local_Fetcher_Agent` fetch/upload response, and sample `Report_Schema` + raw-Opsera-output fixtures (well-formed and malformed).
     - Lets Person A's upload trigger and Person B's UI integrate before the real implementations exist.
     - _Requirements: 6.7, 7.1, 9.1_
 
 ## Person A — Fetcher + Backend (Node / Vercel)
 
-- [ ] 2. Package-name validation and npm resolution
-  - [ ] 2.1 Implement the package-name validator
+- [x] 2. Package-name validation and npm resolution
+  - [x] 2.1 Implement the package-name validator
     - Enforce npm naming constraints (non-empty, ≤ 214 chars, permitted characters), support `@scope/name`, and provide encode/decode that round-trips a scoped name to a safe registry/Tigris key.
     - Reject invalid names with `INVALID_PACKAGE_NAME` **before** any registry query.
     - _Requirements: 1.6, 1.7_
   - [ ]* 2.2 Property test: package-name validation and scoped-name round-trip
     - **Property 6: Package-name validation and scoped-name handling**
     - **Validates: Requirements 1.6, 1.7**
-  - [ ] 2.3 Implement npm resolution in serverless `/api/resolve`
+  - [x] 2.3 Implement npm resolution in serverless `/api/resolve`
     - Resolve latest (`dist-tags.latest`) when no version given, exact version otherwise; produce `ResolvedPackage` (tarballUrl, integrity); 10s registry timeout.
     - Map failures to `PACKAGE_UNRESOLVED`, `VERSION_UNRESOLVED`, `REGISTRY_UNAVAILABLE` with no partial result.
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.8_
@@ -55,16 +55,16 @@ The interface contracts (`Scan_Result_Contract`, `Report_Schema`, upload-trigger
     - Nonexistent package (1.4), nonexistent version (1.5), registry network error / timeout (1.8).
     - _Requirements: 1.4, 1.5, 1.8_
 
-- [ ] 3. Tarball download with size cap
-  - [ ] 3.1 Implement tarball download from npm metadata
+- [x] 3. Tarball download with size cap
+  - [x] 3.1 Implement tarball download from npm metadata
     - Download `.tgz` from the metadata tarball URL within 30s; abort and discard partial bytes on refused/interrupted/non-2xx/timeout (`DOWNLOAD_FAILED`); abort over 100 MB (`DOWNLOAD_TOO_LARGE`); never execute downloaded content.
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
   - [ ]* 3.2 Integration test: download success and size boundary
     - Successful download references content (2.1, 2.2); just-over-100 MB aborts (2.4).
     - _Requirements: 2.1, 2.2, 2.4_
 
-- [ ] 4. Safe-tar Extractor (path-traversal / link / bomb defenses)
-  - [ ] 4.1 Implement the streaming safe-tar `Extractor`
+- [x] 4. Safe-tar Extractor (path-traversal / link / bomb defenses)
+  - [x] 4.1 Implement the streaming safe-tar `Extractor`
     - Follow the Safe-Tar Extraction Algorithm: streaming `tar-stream` over a gunzip counting stream; resolve canonical root once; lexical containment check; no-follow directory creation and file writes (`O_NOFOLLOW`); intermediate-symlink re-check; write symlink/hardlink entries as inert placeholders (never live links).
     - Distinct violation types: `PATH_TRAVERSAL`, `ABSOLUTE_PATH`, `LINK_TARGET_ESCAPE`; running counters abort over 250 MB uncompressed or 10,000 entries (`RESOURCE_LIMIT_EXCEEDED`).
     - Empty-before precondition; rollback of all written paths on abort; `finally` cleanup removes the whole `Scan_Target_Directory` (success or abort).
@@ -82,8 +82,8 @@ The interface contracts (`Scan_Result_Contract`, `Report_Schema`, upload-trigger
     - **Property 5: Isolation across scans (clean before and after)**
     - **Validates: Requirements 4.6, 4.7**
 
-- [ ] 5. Inspect-without-installing safety guarantee
-  - [ ] 5.1 Wire the no-exec fetch+extract pipeline
+- [x] 5. Inspect-without-installing safety guarantee
+  - [x] 5.1 Wire the no-exec fetch+extract pipeline
     - Compose download → extract so the pipeline never runs an install command, never requires/imports/evaluates/`vm`-runs fetched files, ignores `preinstall`/`install`/`postinstall` lifecycle scripts, and treats all extracted content as read-only data; on any failure return a typed error and run cleanup without executing content.
     - _Requirements: 2.5, 3.1, 3.2, 3.3, 3.4, 3.5, 3.7_
   - [ ]* 5.2 Property test: inspect without installing — no fetched code is ever executed
@@ -91,14 +91,14 @@ The interface contracts (`Scan_Result_Contract`, `Report_Schema`, upload-trigger
     - **Validates: Requirements 2.5, 3.1, 3.2, 3.3, 3.4, 3.5**
     - Spies on `child_process.spawn/exec`, `require`, dynamic `import`, `eval`, and `vm` must record zero invocations against fetched content.
 
-- [ ] 6. Editor_Launcher and Scan_Result_Contract
-  - [ ] 6.1 Implement the `Editor_Launcher`
+- [x] 6. Editor_Launcher and Scan_Result_Contract
+  - [x] 6.1 Implement the `Editor_Launcher`
     - Run `code ./scan-target/` within 10s on successful extraction and surface the `/security-scan` prompt; on missing `code` return `VSCODE_UNAVAILABLE`; on launch failure/timeout return `VSCODE_LAUNCH_FAILED`; both state the manual open command and **retain** the scan-target.
     - _Requirements: 5.1, 5.2, 5.3, 5.4_
   - [ ]* 6.2 Example tests: launcher branches
     - Launch success (5.1), prompt shown (5.2), `code` missing (5.3), launch failure (5.4).
     - _Requirements: 5.1, 5.2, 5.3, 5.4_
-  - [ ] 6.3 Produce the `Scan_Result_Contract`
+  - [x] 6.3 Produce the `Scan_Result_Contract`
     - On successful extraction emit non-empty `packageName`, `version`, `sourcePath`, `reportPath`, with `reportPath` pre-computed inside the scan-target (e.g. `./scan-target/.packguard/report.json`).
     - _Requirements: 6.1, 6.2_
   - [ ]* 6.4 Property test: Scan_Result_Contract completeness
@@ -106,10 +106,10 @@ The interface contracts (`Scan_Result_Contract`, `Report_Schema`, upload-trigger
     - **Validates: Requirements 6.1, 6.2**
 
 - [ ] 7. Local_Fetcher_Agent loopback server and upload trigger
-  - [ ] 7.1 Implement the loopback agent server (`127.0.0.1:3939`)
+  - [x] 7.1 Implement the loopback agent server (`127.0.0.1:3939`)
     - `POST /local/fetch` wires resolve input → download → extract → launch → `Scan_Result_Contract`; `GET /local/health` reports `codeCliAvailable`; bind to localhost only; map `FetchErrorType` to HTTP responses.
     - _Requirements: 5.1, 5.2, 6.1, 6.2_
-  - [ ] 7.2 Implement the upload-trigger interface (`POST /local/upload`)
+  - [-] 7.2 Implement the upload-trigger interface (`POST /local/upload`)
     - Read `reportPath`, normalize to `Report_Schema`, derive the verdict, hand `Scan_Report` + `Source_Snapshot` to the `Storage_Service`, return success on confirmation; `REPORT_MISSING` guard (no storage call); `UPLOAD_FAILED` retains the report on 30s no-confirm/failure.
     - Builds against the `StorageService` stub from task 1.3 (see Notes); real wiring is task 17.1.
     - _Requirements: 6.3, 6.4, 6.5, 6.6, 6.7_
