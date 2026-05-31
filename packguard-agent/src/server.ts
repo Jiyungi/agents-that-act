@@ -64,6 +64,7 @@ import { fetchAndExtract, type FetchAndExtractResult } from "./pipeline.js";
 import {
   isCodeCliAvailable,
   launchEditor,
+  resolveEditorCommand,
   type LaunchEditorResult,
 } from "./editor-launcher.js";
 import {
@@ -242,6 +243,12 @@ export interface AgentServerDeps {
    * {@link isCodeCliAvailable}.
    */
   isCodeCliAvailableImpl?: typeof isCodeCliAvailable;
+  /**
+   * The editor-launch command (e.g. `code`, or an absolute VS Code path). When
+   * omitted, the launcher/probe use their own default (`code`). `startAgentServer`
+   * resolves a real editor via {@link resolveEditorCommand} and passes it here.
+   */
+  codeCommand?: string;
   /** Safe-tar limits forwarded to the pipeline. Defaults to the shared caps. */
   limits?: SafeTarLimits;
   /** Download timeout (ms) forwarded to the pipeline. */
@@ -331,6 +338,7 @@ export function createAgentServer(deps: AgentServerDeps): AgentServer {
     fetchAndExtractImpl = fetchAndExtract,
     launchEditorImpl = launchEditor,
     isCodeCliAvailableImpl = isCodeCliAvailable,
+    codeCommand,
     limits = DEFAULT_SAFE_TAR_LIMITS,
     downloadTimeoutMs,
     extractionTimeoutMs,
@@ -434,7 +442,10 @@ export function createAgentServer(deps: AgentServerDeps): AgentServer {
       createdAt: new Date().toISOString(),
     });
 
-    const launch: LaunchEditorResult = await launchEditorImpl(result.contract.sourcePath);
+    const launch: LaunchEditorResult = await launchEditorImpl(
+      result.contract.sourcePath,
+      codeCommand !== undefined ? { codeCommand } : {},
+    );
     if (launch.ok) {
       // 200: the Scan_Result_Contract, extended in the HTTP envelope with the
       // uploadId (the 7.2 seam) and the /security-scan prompt (Req 5.2). The
@@ -463,7 +474,9 @@ export function createAgentServer(deps: AgentServerDeps): AgentServer {
 
   /** `GET /local/health` — report whether the `code` CLI is available (Req 5). */
   const handleHealth: RouteHandler = async () => {
-    const codeCliAvailable = await isCodeCliAvailableImpl();
+    const codeCliAvailable = await isCodeCliAvailableImpl(
+      codeCommand !== undefined ? { codeCommand } : {},
+    );
     return { status: 200, body: { status: "ok", codeCliAvailable } };
   };
 
@@ -799,11 +812,17 @@ export function startAgentServer(
     options.deps?.normalizeReport ??
     ((raw: unknown) => normalizeReport_shared(raw, { threshold: config.riskThreshold }));
 
+  // Resolve a real editor-launch command (env override → code → known VS Code
+  // install paths → code-insiders/kiro). Lets the agent open VS Code even when
+  // `code` was never added to PATH (common on Windows).
+  const codeCommand = options.deps?.codeCommand ?? resolveEditorCommand();
+
   const agent = createAgentServer({
     ...options.deps,
     scanTargetDir,
     storageService,
     normalizeReport,
+    codeCommand,
   });
 
   return new Promise<StartedAgentServer>((resolve, reject) => {

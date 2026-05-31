@@ -62,7 +62,13 @@ describe("launchEditor", () => {
     if (result.ok) expect(result.prompt).toBe(SECURITY_SCAN_PROMPT);
     expect(calls).toHaveLength(1);
     expect(calls[0]?.command).toBe("code");
-    expect(calls[0]?.args).toEqual([path.resolve("./scan-target")]);
+    // On Windows the dir is quoted because the launch goes through a shell (to
+    // run the `code.cmd` shim); on POSIX it is passed verbatim.
+    const expectedArg =
+      process.platform === "win32"
+        ? `"${path.resolve("./scan-target")}"`
+        : path.resolve("./scan-target");
+    expect(calls[0]?.args).toEqual([expectedArg]);
   });
 
   it("returns VSCODE_UNAVAILABLE with a manual command when `code` is absent (Req 5.3)", async () => {

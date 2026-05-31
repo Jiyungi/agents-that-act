@@ -37,6 +37,8 @@
  */
 
 import { spawn as nodeSpawn } from "node:child_process";
+import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 
 import { FetchErrorType } from "@shared/errors";
@@ -49,6 +51,97 @@ export const DEFAULT_PROBE_TIMEOUT_MS = 5_000;
 
 /** The VS Code launcher CLI command (overridable for tests). */
 export const DEFAULT_CODE_COMMAND = "code";
+
+/**
+ * Resolve the editor-launch command, in priority order:
+ *   1. `EDITOR_COMMAND` env override (operator can point at any editor CLI),
+ *   2. a bare `code` on PATH (the canonical VS Code CLI),
+ *   3. known per-platform VS Code / VS Code Insiders install locations,
+ *   4. a bare `kiro` / `code-insiders` on PATH as a last resort.
+ *
+ * Returns the first command that exists, or {@link DEFAULT_CODE_COMMAND}
+ * (`code`) when nothing is found — in which case {@link launchEditor} surfaces
+ * `VSCODE_UNAVAILABLE` with the manual command (Req 5.3). This lets the agent
+ * "open VS Code" on machines where `code` was never added to PATH, which is the
+ * common case on Windows.
+ */
+export function resolveEditorCommand(env: NodeJS.ProcessEnv = process.env): string {
+  const override = env["EDITOR_COMMAND"]?.trim();
+  if (override) return override;
+
+  if (commandOnPath("code", env)) return "code";
+
+  for (const candidate of knownEditorPaths(env)) {
+    if (candidate && fileExists(candidate)) return candidate;
+  }
+
+  for (const fallback of ["code-insiders", "kiro"]) {
+    if (commandOnPath(fallback, env)) return fallback;
+  }
+
+  return DEFAULT_CODE_COMMAND;
+}
+
+/** Candidate absolute editor CLI paths per platform. */
+function knownEditorPaths(env: NodeJS.ProcessEnv): string[] {
+  const home = os.homedir();
+  if (process.platform === "win32") {
+    const localApp = env["LOCALAPPDATA"] ?? path.join(home, "AppData", "Local");
+    const progFiles = env["ProgramFiles"] ?? "C:\\Program Files";
+    const progFilesX86 = env["ProgramFiles(x86)"] ?? "C:\\Program Files (x86)";
+    return [
+      path.join(localApp, "Programs", "Microsoft VS Code", "bin", "code.cmd"),
+      path.join(progFiles, "Microsoft VS Code", "bin", "code.cmd"),
+      path.join(progFilesX86, "Microsoft VS Code", "bin", "code.cmd"),
+      path.join(
+        localApp,
+        "Programs",
+        "Microsoft VS Code Insiders",
+        "bin",
+        "code-insiders.cmd",
+      ),
+      path.join(localApp, "Programs", "Kiro", "bin", "kiro.cmd"),
+    ];
+  }
+  if (process.platform === "darwin") {
+    return [
+      "/usr/local/bin/code",
+      "/opt/homebrew/bin/code",
+      "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code",
+    ];
+  }
+  return ["/usr/bin/code", "/usr/local/bin/code", "/snap/bin/code"];
+}
+
+/** `true` iff `file` exists on disk. */
+function fileExists(file: string): boolean {
+  try {
+    return fs.existsSync(file);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Best-effort check whether a bare command resolves on PATH, by scanning the
+ * PATH dirs for the command (with platform executable extensions). Avoids
+ * spawning a probe process for every candidate.
+ */
+function commandOnPath(command: string, env: NodeJS.ProcessEnv): boolean {
+  const pathVar = env["PATH"] ?? env["Path"] ?? "";
+  if (pathVar === "") return false;
+  const dirs = pathVar.split(path.delimiter).filter(Boolean);
+  const exts =
+    process.platform === "win32"
+      ? (env["PATHEXT"] ?? ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean)
+      : [""];
+  for (const dir of dirs) {
+    for (const ext of exts) {
+      if (fileExists(path.join(dir, command + ext))) return true;
+    }
+  }
+  return false;
+}
 
 /**
  * The `/security-scan` prompt text surfaced to the Operator (Req 5.2).
@@ -89,6 +182,11 @@ export interface ChildProcessLike {
 export interface LauncherSpawnOptions {
   stdio: "ignore";
   detached?: boolean;
+  /**
+   * Run via a shell. REQUIRED on Windows to launch the `code.cmd` / `kiro.cmd`
+   * batch shims (Node's `spawn` cannot exec a `.cmd` directly without a shell).
+   */
+  shell?: boolean;
 }
 
 /**
@@ -166,6 +264,13 @@ export function launchEditor(
   const absDir = path.resolve(scanTargetDir);
   const manualCommand = manualOpenCommand(scanTargetDir, codeCommand);
 
+  // On Windows the editor CLI is a `.cmd` batch shim, which Node's `spawn`
+  // cannot execute without a shell. When using a shell we must quote the
+  // directory ourselves (the shell, not Node, parses the arg list), so paths
+  // with spaces (e.g. `C:\Users\Mr. Paul\…`) survive.
+  const useShell = process.platform === "win32";
+  const launchArgs = useShell ? [`"${absDir}"`] : [absDir];
+
   const unavailable = (message: string): LaunchEditorFailure => ({
     ok: false,
     errorType: FetchErrorType.VSCODE_UNAVAILABLE,
@@ -195,9 +300,10 @@ export function launchEditor(
 
     let child: ChildProcessLike;
     try {
-      child = spawnImpl(codeCommand, [absDir], {
+      child = spawnImpl(codeCommand, launchArgs, {
         stdio: "ignore",
         detached: true,
+        shell: useShell,
       });
     } catch (err) {
       // Some platforms throw synchronously instead of emitting `error`.
@@ -278,6 +384,7 @@ export function isCodeCliAvailable(
       child = spawnImpl(codeCommand, ["--version"], {
         stdio: "ignore",
         detached: false,
+        shell: process.platform === "win32",
       });
     } catch {
       settle(false);

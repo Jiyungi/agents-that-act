@@ -11,6 +11,7 @@
  */
 
 import { LOOPBACK_HOST, startAgentServer } from "./server.js";
+import { resolveEditorCommand } from "./editor-launcher.js";
 import { loadRepoEnv } from "@shared/env";
 
 async function main(): Promise<void> {
@@ -18,10 +19,15 @@ async function main(): Promise<void> {
   // when the agent runs locally (Vercel injects these in the cloud instead).
   loadRepoEnv();
   const agent = await startAgentServer();
+  const editor = resolveEditorCommand();
   // eslint-disable-next-line no-console
   console.log(
     `packguard-agent listening on http://${LOOPBACK_HOST}:${agent.port} ` +
-      `(loopback only — never exposed to the network)`,
+      `(loopback only — never exposed to the network)\n` +
+      `  editor launch command: ${editor}` +
+      (editor === "code"
+        ? ""
+        : `  (set EDITOR_COMMAND to override)`),
   );
 }
 
