@@ -46,6 +46,8 @@ import { randomUUID } from "node:crypto";
 
 import { FetchErrorType, UploadErrorType } from "@shared/errors";
 import { loadConfig } from "@shared/config";
+import { TigrisStorageService } from "@shared/storage";
+import { normalizeReport as normalizeReport_shared } from "@shared/normalize";
 import {
   DEFAULT_SAFE_TAR_LIMITS,
   type ResolvedPackage,
@@ -588,6 +590,17 @@ export function createAgentServer(deps: AgentServerDeps): AgentServer {
     req: http.IncomingMessage,
     res: http.ServerResponse,
   ): void => {
+    // CORS: the browser page (Vercel origin / localhost:5173) calls this
+    // loopback agent cross-origin. The agent is bound to 127.0.0.1 only, so it
+    // is reachable only from the operator's own machine; permissive CORS here
+    // just lets the local UI talk to it. Handle the preflight directly.
+    setCorsHeaders(res);
+    if ((req.method ?? "GET").toUpperCase() === "OPTIONS") {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+
     void dispatch(req)
       .then((response) => writeJson(res, response.status, response.body))
       .catch((err: unknown) => {
@@ -730,6 +743,19 @@ function writeJson(res: http.ServerResponse, status: number, body: unknown): voi
   res.end(payload);
 }
 
+/**
+ * Set permissive CORS headers so the local Frontend_UI (served from a Vercel
+ * origin or `localhost:5173` in dev) can call this loopback agent from the
+ * browser. SAFE because the agent binds to 127.0.0.1 only and is therefore
+ * reachable solely from the operator's own machine.
+ */
+function setCorsHeaders(res: http.ServerResponse): void {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Max-Age", "86400");
+}
+
 /** Options for {@link startAgentServer}. */
 export interface StartAgentServerOptions {
   /**
@@ -764,7 +790,21 @@ export function startAgentServer(
   const port = options.port ?? config.localAgentPort;
   const scanTargetDir = options.deps?.scanTargetDir ?? config.scanTargetDir;
 
-  const agent = createAgentServer({ ...options.deps, scanTargetDir });
+  // Wire the REAL Storage_Service + report normalizer by default (task 17.1),
+  // unless a caller injected its own (tests inject fakes). Constructing the
+  // Tigris service is lazy — it only talks to the network on an actual upload.
+  const storageService =
+    options.deps?.storageService ?? new TigrisStorageService({ config });
+  const normalizeReport =
+    options.deps?.normalizeReport ??
+    ((raw: unknown) => normalizeReport_shared(raw, { threshold: config.riskThreshold }));
+
+  const agent = createAgentServer({
+    ...options.deps,
+    scanTargetDir,
+    storageService,
+    normalizeReport,
+  });
 
   return new Promise<StartedAgentServer>((resolve, reject) => {
     const onError = (err: Error): void => reject(err);

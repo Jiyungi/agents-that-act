@@ -22,3 +22,7 @@ export * from "./scan.js";
 export * from "./errors.js";
 export * from "./package-name.js";
 export * from "./framing.js";
+export * from "./verdict.js";
+export * from "./normalize.js";
+export * from "./storage.js";
+export * from "./env.js";

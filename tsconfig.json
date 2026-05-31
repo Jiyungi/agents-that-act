@@ -27,6 +27,6 @@
 
     "noEmit": true
   },
-  "include": ["shared", "api", "packguard-agent"],
+  "include": ["shared", "api", "packguard-agent", "scripts"],
   "exclude": ["node_modules", "dist", ".vercel", "scan-target", "reports", "web"]
 }

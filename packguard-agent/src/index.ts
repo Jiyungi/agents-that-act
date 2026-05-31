@@ -11,8 +11,12 @@
  */
 
 import { LOOPBACK_HOST, startAgentServer } from "./server.js";
+import { loadRepoEnv } from "@shared/env";
 
 async function main(): Promise<void> {
+  // Load repo-root .env so the Tigris-backed Storage_Service has credentials
+  // when the agent runs locally (Vercel injects these in the cloud instead).
+  loadRepoEnv();
   const agent = await startAgentServer();
   // eslint-disable-next-line no-console
   console.log(
