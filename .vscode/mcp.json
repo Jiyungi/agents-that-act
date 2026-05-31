@@ -1,8 +1,19 @@
 {
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "opsera-api-token",
+      "description": "Opsera API token",
+      "password": true
+    }
+  ],
   "servers": {
     "opsera": {
       "type": "http",
-      "url": "https://agent.opsera.ai/mcp"
+      "url": "https://agent.opsera.ai/mcp",
+      "headers": {
+        "Authorization": "Bearer ${input:opsera-api-token}"
+      }
     }
   }
 }

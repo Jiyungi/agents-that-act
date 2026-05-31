@@ -1,15 +1,17 @@
-# OS
-.DS_Store
-Thumbs.db
-
-# Editor
-*.swp
-*.swo
-
-# Logs
-*.log
-
-# Environment / secrets
+# Secrets - NEVER commit
 .env
-.env.*
-*.local
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+
+# Working folders (untrusted package source + staged reports)
+scan-target/
+reports/
+
+# Build / runtime
+.vercel/
+dist/
+*.log
+.DS_Store
