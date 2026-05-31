@@ -261,6 +261,12 @@ export function launchEditor(
   const timeoutMs = options.timeoutMs ?? DEFAULT_LAUNCH_TIMEOUT_MS;
   const spawnImpl = options.spawnImpl ?? defaultSpawn;
 
+  // Grace window for fire-and-forget success: if the editor process starts and
+  // survives this long with no `error` event, the launch is considered
+  // successful (opening a folder keeps the editor running, so we never wait for
+  // it to exit). Capped so it can never exceed the caller's timeout budget.
+  const graceMs = Math.min(timeoutMs, 600);
+
   const absDir = path.resolve(scanTargetDir);
   const manualCommand = manualOpenCommand(scanTargetDir, codeCommand);
 
@@ -286,15 +292,14 @@ export function launchEditor(
 
   return new Promise<LaunchEditorResult>((resolve) => {
     let settled = false;
-    // The timer is intentionally NOT unref'd: it keeps the event loop alive
-    // until we settle, so a bare `await launchEditor()` resolves even if the
-    // spawned child is detached/unref'd.
-    let timer: NodeJS.Timeout | undefined;
+    // Keeps the event loop alive until we settle, so a bare `await
+    // launchEditor()` resolves even though the spawned child is detached.
+    let graceTimer: NodeJS.Timeout | undefined;
 
     const settle = (result: LaunchEditorResult): void => {
       if (settled) return;
       settled = true;
-      if (timer !== undefined) clearTimeout(timer);
+      if (graceTimer !== undefined) clearTimeout(graceTimer);
       resolve(result);
     };
 
@@ -325,8 +330,11 @@ export function launchEditor(
       );
     });
 
+    // If the launcher process exits BEFORE the grace window, use its code: the
+    // `code` CLI typically hands off to a window and exits 0 quickly. A
+    // non-zero early exit is a real launch failure.
     child.on("exit", (code: number | null, signal: NodeJS.Signals | null) => {
-      if (code === 0) {
+      if (code === 0 || code === null) {
         settle({ ok: true, prompt: SECURITY_SCAN_PROMPT });
         return;
       }
@@ -341,14 +349,13 @@ export function launchEditor(
       // A fake/minimal child may not implement unref; harmless to ignore.
     }
 
-    timer = setTimeout(() => {
-      try {
-        child.kill();
-      } catch {
-        // Best-effort; the operator can still open the retained scan-target.
-      }
-      settle(launchFailed(`VS Code launch did not complete within ${timeoutMs}ms`));
-    }, timeoutMs);
+    // Fire-and-forget success: opening a folder keeps the editor RUNNING (and a
+    // cold start can take longer than any fixed timeout), so we do NOT wait for
+    // it to exit. If the process started and survives a short grace window with
+    // no `error` event, the launch succeeded. We never kill the editor.
+    graceTimer = setTimeout(() => {
+      settle({ ok: true, prompt: SECURITY_SCAN_PROMPT });
+    }, graceMs);
   });
 }
 

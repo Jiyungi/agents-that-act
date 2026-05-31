@@ -96,14 +96,15 @@ describe("launchEditor", () => {
     }
   });
 
-  it("returns VSCODE_LAUNCH_FAILED when the launch does not complete within the timeout (Req 5.4)", async () => {
-    // Fake child never emits — forces the timeout branch.
+  it("treats a started editor that does not exit as a success (fire-and-forget launch, Req 5.1)", async () => {
+    // Fake child never emits exit/error — opening a folder keeps the editor
+    // running, so after the grace window the launch is considered successful.
     const { spawnImpl } = fakeSpawn(() => {});
 
     const result = await launchEditor("./scan-target", { spawnImpl, timeoutMs: 10 });
 
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.errorType).toBe(FetchErrorType.VSCODE_LAUNCH_FAILED);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.prompt).toBe(SECURITY_SCAN_PROMPT);
   });
 });
 

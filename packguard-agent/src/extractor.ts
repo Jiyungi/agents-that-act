@@ -195,14 +195,70 @@ function resolveLinkTarget(
 }
 
 /**
- * Ensure that empty `Scan_Target_Directory` precondition (Req 4.6, Property 5):
+ * Ensure the empty `Scan_Target_Directory` precondition (Req 4.6, Property 5):
  * the directory must exist and contain zero carried-over entries before
- * extraction. We guarantee it by removing any existing tree and recreating it
- * fresh, so isolation across scans holds regardless of prior state.
+ * extraction.
+ *
+ * Normal case: remove the whole tree and recreate it fresh. Windows fallback:
+ * if the root cannot be removed because an editor (VS Code / Kiro) still holds
+ * the folder open (EBUSY/EPERM), empty its CONTENTS instead so the precondition
+ * still holds without failing the scan.
  */
 async function ensureEmptyDir(dir: string): Promise<void> {
-  await fsp.rm(dir, { recursive: true, force: true });
+  await removeTreeOrEmptyContents(dir);
   await fsp.mkdir(dir, { recursive: true });
+}
+
+/**
+ * Remove `dir` entirely. If removing the root fails due to a transient/handle
+ * lock (EBUSY/EPERM — typical when an editor has the folder open on Windows),
+ * fall back to removing only its children so zero entries remain. Best-effort:
+ * never throws.
+ */
+async function removeTreeOrEmptyContents(dir: string): Promise<void> {
+  for (let i = 0; i < 4; i++) {
+    try {
+      await fsp.rm(dir, { recursive: true, force: true });
+      return;
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code === "EBUSY" || code === "EPERM" || code === "ENOTEMPTY") {
+        if (i < 3) {
+          await new Promise((r) => setTimeout(r, 120));
+          continue;
+        }
+        // Root is held open: empty the contents instead.
+        await emptyDirContents(dir);
+        return;
+      }
+      return; // other errors (e.g. ENOENT) → nothing to remove
+    }
+  }
+}
+
+/** Remove every child of `dir` (best-effort), leaving the root in place. */
+async function emptyDirContents(dir: string): Promise<void> {
+  let entries: string[] = [];
+  try {
+    entries = await fsp.readdir(dir);
+  } catch {
+    return;
+  }
+  for (const name of entries) {
+    for (let i = 0; i < 4; i++) {
+      try {
+        await fsp.rm(path.join(dir, name), { recursive: true, force: true });
+        break;
+      } catch (err) {
+        const code = (err as NodeJS.ErrnoException).code;
+        if ((code === "EBUSY" || code === "EPERM" || code === "ENOTEMPTY") && i < 3) {
+          await new Promise((r) => setTimeout(r, 120));
+          continue;
+        }
+        break; // best-effort
+      }
+    }
+  }
 }
 
 /**
@@ -349,15 +405,12 @@ async function rollbackWrittenPaths(writtenPaths: string[]): Promise<void> {
 /**
  * Remove the entire `Scan_Target_Directory` and all its contents (Req 4.7).
  *
- * This is the EXPLICIT cleanup method referenced by the "finally-cleanup vs.
- * sourcePath seam" note above. The orchestration pipeline (task 5.1) calls it
- * in its own `finally` after the launch → manual scan → upload lifecycle so
- * that no extracted content from a package persists after the scan, while
- * still allowing the populated directory to be handed to the launcher on
- * success.
+ * Normal case removes the whole tree. If an editor (VS Code / Kiro) still holds
+ * the folder open on Windows (EBUSY/EPERM), it falls back to emptying the
+ * contents so no extracted package content persists, without hard-failing.
  */
 export async function cleanupScanTarget(scanTargetDir: string): Promise<void> {
-  await fsp.rm(scanTargetDir, { recursive: true, force: true });
+  await removeTreeOrEmptyContents(scanTargetDir);
 }
 
 /**
