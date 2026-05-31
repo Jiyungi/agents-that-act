@@ -28,6 +28,7 @@ import {
   PutObjectCommand,
   GetObjectCommand,
   ListObjectsV2Command,
+  DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 
 import type { GalleryResult, ScanRecord } from "./scan.js";
@@ -329,6 +330,28 @@ export class TigrisStorageService implements StorageService {
       ),
     );
     return { scanRecord: record };
+  }
+
+  /**
+   * Delete a stored scan's record + report + source (demo cleanup helper).
+   * Best-effort per object; ignores missing keys.
+   */
+  async deleteScan(packageName: string, version: string): Promise<void> {
+    const keys = [
+      recordKeyFor(packageName, version),
+      reportKeyFor(packageName, version),
+      sourceKeyFor(packageName, version),
+      `reports/${encodePackageName(packageName)}/${version}/raw-report`,
+    ];
+    for (const key of keys) {
+      try {
+        await this.client.send(
+          new DeleteObjectCommand({ Bucket: this.bucket, Key: key }),
+        );
+      } catch {
+        // best-effort
+      }
+    }
   }
 
   /** Fetch + parse the stored report JSON for the report proxy endpoint. */
