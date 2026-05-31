@@ -20,12 +20,12 @@ The interface contracts (`Scan_Result_Contract`, `Report_Schema`, upload-trigger
 ## Shared Setup & Interface Contracts (do first)
 
 - [ ] 1. Project scaffold and shared interface contracts
-  - [ ] 1.1 Initialize project structure and tooling
+  - [x] 1.1 Initialize project structure and tooling
     - Create the single-repo layout: `web/` (Frontend_UI), `api/` (Vercel serverless functions), `packguard-agent/` (local loopback agent), and `shared/` (types).
     - Configure TypeScript, `fast-check`, and a test runner (Vitest), plus npm scripts.
     - Add `.env.example` entries / config loader for `TIGRIS_ENDPOINT`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `TIGRIS_BUCKET`, `RISK_THRESHOLD` (default 50), `LOCAL_AGENT_PORT` (default 3939), `SCAN_TARGET_DIR` (default `./scan-target`), `NPM_REGISTRY_BASE` (default `https://registry.npmjs.org`).
     - _Requirements: 16.1, 16.2_
-  - [ ] 1.2 Define the shared TypeScript contract types (the integration seams)
+  - [x] 1.2 Define the shared TypeScript contract types (the integration seams)
     - `ScanResultContract` (Interface 1); `ReportSchema` with `Verdict`, `Severity`, `Finding` (Data Models, Req 12); `ScanRecord` (Req 7.5); `ResolvedPackage` and `SafeTarLimits`; `GalleryResult` (Interface 5); `FetchErrorType` and `UploadErrorType` enums.
     - These are the agreed stubs Person A and Person B build against.
     - _Requirements: 6.1, 12.1, 12.2, 12.3, 12.6, 12.7, 7.5, 9.1_
@@ -178,8 +178,8 @@ The interface contracts (`Scan_Result_Contract`, `Report_Schema`, upload-trigger
     - Empty store → empty list message (9.6, 9.7); store unavailable (9.8).
     - _Requirements: 9.6, 9.7, 9.8_
 
-- [ ] 13. Honest-framing copy module
-  - [ ] 13.1 Implement `framing.ts`
+- [x] 13. Honest-framing copy module
+  - [x] 13.1 Implement `framing.ts`
     - Centralize approved copy: the "automated static security review and risk scoring" label, Opsera/static-analysis attribution, the static-analysis disclaimer, and the forbidden-term list ("behavioral", "dynamic analysis", "runtime detection", "malware detection").
     - _Requirements: 17.1, 17.2, 17.3, 17.4_
 
