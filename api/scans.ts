@@ -12,7 +12,7 @@
  * handler only parses the optional `limit` and maps to an HTTP response.
  */
 
-import type { GalleryResult } from "@shared/scan";
+import type { GalleryResult } from "../shared/scan.js";
 import { getStorage } from "./_lib/storage.js";
 
 export interface ScansRequest {

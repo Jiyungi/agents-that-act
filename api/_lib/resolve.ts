@@ -31,10 +31,10 @@
  * and never downloads or executes package content (that is task 3.1+).
  */
 
-import { validatePackageName } from "@shared/package-name";
-import { FetchErrorType } from "@shared/errors";
-import type { ResolvedPackage } from "@shared/scan";
-import { loadConfig } from "@shared/config";
+import { validatePackageName } from "../../shared/package-name.js";
+import { FetchErrorType } from "../../shared/errors.js";
+import type { ResolvedPackage } from "../../shared/scan.js";
+import { loadConfig } from "../../shared/config.js";
 
 /** Default registry timeout: 10 seconds (Req 1.8). */
 export const DEFAULT_REGISTRY_TIMEOUT_MS = 10_000;

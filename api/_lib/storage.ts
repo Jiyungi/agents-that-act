@@ -7,7 +7,7 @@
  * across warm serverless invocations.
  */
 
-import { TigrisStorageService } from "@shared/storage";
+import { TigrisStorageService } from "../../shared/storage.js";
 
 let singleton: TigrisStorageService | undefined;
 

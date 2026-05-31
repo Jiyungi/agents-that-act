@@ -13,7 +13,7 @@
  *     404 { error } when no stored report matches (Req 8.4)
  */
 
-import type { ReportSchema } from "@shared/report";
+import type { ReportSchema } from "../shared/report.js";
 import { getStorage } from "./_lib/storage.js";
 
 export interface ReportRequest {

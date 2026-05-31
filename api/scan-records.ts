@@ -13,9 +13,9 @@
  *     502 { errorType: UPLOAD_FAILED, message }
  */
 
-import type { ScanRecord } from "@shared/scan";
-import { StorageError } from "@shared/storage";
-import { UploadErrorType } from "@shared/errors";
+import type { ScanRecord } from "../shared/scan.js";
+import { StorageError } from "../shared/storage.js";
+import { UploadErrorType } from "../shared/errors.js";
 import { getStorage } from "./_lib/storage.js";
 
 export interface ScanRecordsRequest {

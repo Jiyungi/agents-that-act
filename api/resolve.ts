@@ -32,8 +32,8 @@
  *   missing packageName  → 400   (INVALID_PACKAGE_NAME)
  */
 
-import { FetchErrorType } from "@shared/errors";
-import type { ResolvedPackage } from "@shared/scan";
+import { FetchErrorType } from "../shared/errors.js";
+import type { ResolvedPackage } from "../shared/scan.js";
 import {
   resolvePackage,
   type ResolveDeps,
