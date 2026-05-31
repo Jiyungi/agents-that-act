@@ -1,5 +1,5 @@
-import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
+import { fileURLToPath } from "node:url";
 
 export default defineConfig({
   resolve: {
@@ -10,6 +10,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
-    include: ["{shared,web,api,packguard-agent}/**/*.{test,spec}.ts"],
+    include: ["**/*.test.ts"],
+    exclude: ["node_modules/**", "dist/**", "web/node_modules/**"],
   },
 });

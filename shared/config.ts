@@ -20,6 +20,12 @@ export const CONFIG_DEFAULTS = {
   NPM_REGISTRY_BASE: "https://registry.npmjs.org",
 } as const;
 
+/**
+ * @deprecated Use {@link CONFIG_DEFAULTS}. Retained as an alias so older
+ * imports of `configDefaults` keep resolving.
+ */
+export const configDefaults = CONFIG_DEFAULTS;
+
 export interface PackGuardConfig {
   /** Tigris S3-compatible endpoint (e.g. https://t3.storage.dev). */
   tigrisEndpoint: string;

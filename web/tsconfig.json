@@ -1,32 +1,27 @@
 {
   "compilerOptions": {
     "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["node"],
-
+    "jsx": "react-jsx",
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true,
     "forceConsistentCasingInFileNames": true,
-
     "esModuleInterop": true,
-    "resolveJsonModule": true,
     "skipLibCheck": true,
+    "resolveJsonModule": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
-
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@shared/*": ["shared/*"]
-    },
-
-    "noEmit": true
+      "@shared/*": ["../shared/*"]
+    }
   },
-  "include": ["shared", "api", "packguard-agent"],
-  "exclude": ["node_modules", "dist", ".vercel", "scan-target", "reports", "web"]
+  "include": ["src", "vite.config.ts"]
 }

@@ -37,14 +37,14 @@ The interface contracts (`Scan_Result_Contract`, `Report_Schema`, upload-trigger
 ## Person A — Fetcher + Backend (Node / Vercel)
 
 - [x] 2. Package-name validation and npm resolution
-  - [x] 2.1 Implement the package-name validator
+  - [ ] 2.1 Implement the package-name validator
     - Enforce npm naming constraints (non-empty, ≤ 214 chars, permitted characters), support `@scope/name`, and provide encode/decode that round-trips a scoped name to a safe registry/Tigris key.
     - Reject invalid names with `INVALID_PACKAGE_NAME` **before** any registry query.
     - _Requirements: 1.6, 1.7_
   - [-]* 2.2 Property test: package-name validation and scoped-name round-trip
     - **Property 6: Package-name validation and scoped-name handling**
     - **Validates: Requirements 1.6, 1.7**
-  - [x] 2.3 Implement npm resolution in serverless `/api/resolve`
+  - [ ] 2.3 Implement npm resolution in serverless `/api/resolve`
     - Resolve latest (`dist-tags.latest`) when no version given, exact version otherwise; produce `ResolvedPackage` (tarballUrl, integrity); 10s registry timeout.
     - Map failures to `PACKAGE_UNRESOLVED`, `VERSION_UNRESOLVED`, `REGISTRY_UNAVAILABLE` with no partial result.
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.8_
@@ -55,7 +55,7 @@ The interface contracts (`Scan_Result_Contract`, `Report_Schema`, upload-trigger
     - Nonexistent package (1.4), nonexistent version (1.5), registry network error / timeout (1.8).
     - _Requirements: 1.4, 1.5, 1.8_
 
-- [x] 3. Tarball download with size cap
+- [ ] 3. Tarball download with size cap
   - [x] 3.1 Implement tarball download from npm metadata
     - Download `.tgz` from the metadata tarball URL within 30s; abort and discard partial bytes on refused/interrupted/non-2xx/timeout (`DOWNLOAD_FAILED`); abort over 100 MB (`DOWNLOAD_TOO_LARGE`); never execute downloaded content.
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
@@ -178,8 +178,8 @@ The interface contracts (`Scan_Result_Contract`, `Report_Schema`, upload-trigger
     - Empty store → empty list message (9.6, 9.7); store unavailable (9.8).
     - _Requirements: 9.6, 9.7, 9.8_
 
-- [ ] 13. Honest-framing copy module
-  - [ ] 13.1 Implement `framing.ts`
+- [x] 13. Honest-framing copy module
+  - [x] 13.1 Implement `framing.ts`
     - Centralize approved copy: the "automated static security review and risk scoring" label, Opsera/static-analysis attribution, the static-analysis disclaimer, and the forbidden-term list ("behavioral", "dynamic analysis", "runtime detection", "malware detection").
     - _Requirements: 17.1, 17.2, 17.3, 17.4_
 
