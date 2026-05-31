@@ -95,37 +95,111 @@ to avoid the install delay and load spike.
 
 ---
 
-## Remaining steps (interactive — operator must do these)
+## Reproduction guide (Req 14.2 — verified end-to-end)
 
-### Step 3: Connect VS Code via Remote-SSH
+These are the exact steps that produced the YES result above. Prerequisites:
+a Daytona account + API key, VS Code with the Remote-SSH extension, and a
+GitHub account with Copilot access.
 
-1. Install the VS Code Remote-SSH extension:
-   `code --install-extension ms-vscode-remote.remote-ssh`
-2. Generate a token-based SSH target (Daytona Dashboard → Sandboxes → ⋮ →
-   "Create SSH Access", or via SDK `create_ssh_access`). Format:
-   `ssh <token>@ssh.app.daytona.io`
-3. In VS Code: Command Palette → "Remote-SSH: Connect to Host" → paste the
-   SSH command. Open folder `/home/daytona`.
+1. **Install the Daytona CLI** (Windows):
+   `powershell -Command "irm https://get.daytona.io/windows | iex"`
+   (open a new terminal afterward so PATH refreshes).
+2. **Authenticate:** `daytona login` (browser OAuth — writes the CLI profile that
+   `daytona ssh` needs). The `--api-key` flow alone authenticates list/create/exec
+   but does NOT write the ssh profile.
+3. **Create the sandbox:** `daytona create --name packguard-scan --target us`.
+4. **Create an SSH access token:** Daytona Dashboard → Sandboxes → `packguard-scan`
+   → ⋮ → "Create SSH Access" → set expiry high (e.g. 600 min). Target is
+   `ssh <token>@ssh.app.daytona.io`.
+5. **Connect VS Code:** Command Palette → "Remote-SSH: Connect to Host" →
+   "Add New SSH Host" → paste the SSH command → connect (Linux) → open the
+   workspace folder used for the scan.
+6. **Enable Copilot Chat on the remote:** in the Remote-SSH window, install
+   "GitHub Copilot Chat" (the merged extension) into the sandbox and sign in to GitHub.
+7. **Add Opsera MCP** in the WORKSPACE folder — `<workspace>/.vscode/mcp.json`:
+   ```json
+   { "servers": { "opsera": { "type": "http", "url": "https://agent.opsera.ai/mcp" } } }
+   ```
+   Reload window → click the "Start" CodeLens above the JSON → complete Opsera
+   browser OAuth. Verify with "View my Tools" in Copilot Chat (Agent mode) —
+   `mcp_opsera_security-scan` should appear.
+8. **Fetch a package safely (no install):**
+   ```bash
+   cd /home/daytona/scan-target && rm -rf package && \
+     U=$(npm view <pkg> dist.tarball) && curl -sL "$U" -o /tmp/p.tgz && \
+     tar -xzf /tmp/p.tgz -C .
+   ```
+9. **Run the scan:** in Copilot Chat (Agent mode) ask "Run a security scan on the
+   package folder". On a fresh sandbox, approve the one-time scanner-tool install.
+   Reports land in the scan folder (`*-report.json`).
 
-   (Quick terminal sanity check first: `daytona ssh packguard-scan`)
+---
 
-### Step 4: Install GitHub Copilot inside the sandbox
+## Swapping the LOCAL fetch step for a Daytona-sandboxed fetch (Req 14.3)
 
-- In the Remote-SSH VS Code window, install `GitHub.copilot` +
-  `GitHub.copilot-chat` (they install on the REMOTE, i.e. in the sandbox).
-- Sign in to GitHub Copilot via the OAuth device-code flow.
+Person A's local design extracts untrusted source into a local `./scan-target/`.
+To harden it, move the fetch+extract (and the scan) into the sandbox. The
+`Scan_Result_Contract` (`{ packageName, version, sourcePath, reportPath }`) stays
+the same — only `sourcePath`/`reportPath` now refer to **paths inside the sandbox**.
 
-### Step 5: Install Opsera MCP server + OAuth login
+**Local design (today):**
+```
+Backend → download .tgz → safe-untar → ./scan-target/  (untrusted code on host)
+        → code ./scan-target/ → operator runs Opsera scan locally
+```
 
-- Add the Opsera MCP server config inside the sandbox VS Code.
-- Complete Opsera OAuth login from within the sandbox.
-- Then type `/security-scan` in Copilot Chat pointed at `/home/daytona/scan-target`.
+**Daytona-sandboxed design (hardened):**
+```
+Backend → daytona create (or reuse) sandbox
+        → daytona exec: download .tgz + safe-untar → /home/daytona/scan-target/package
+          (untrusted code NEVER on host)
+        → operator connects VS Code Remote-SSH to the sandbox
+        → operator runs Opsera scan IN the sandbox
+        → reports pulled from sandbox → handed to Person B's upload trigger
+```
 
-Record SUCCESS/FAILURE + a reason for each (this table is the deliverable).
+**Concrete substitutions for Person A:**
+- Replace the local download/untar call with `daytona exec <sandbox> -- <fetch script>`.
+  The same safe-tar rules (Req 4: path traversal, absolute paths, symlink escape,
+  resource limits) still apply — run the safe extractor inside the sandbox, not the host.
+- Replace `code ./scan-target/` (Req 5) with connecting VS Code Remote-SSH to the
+  sandbox (Dashboard token → `ssh <token>@ssh.app.daytona.io`).
+- `reportPath` in the contract becomes a sandbox path (e.g.
+  `/home/daytona/scan-target/<scanner>-report.json`). The upload trigger reads the
+  report from the sandbox (`daytona exec ... cat <reportPath>`) before passing it to
+  Person B's `Storage_Service`. Person B's interface is unchanged.
+
+**Pre-bake the sandbox image (operational requirement found during the experiment):**
+the base image lacks the scanners, so build a Daytona snapshot that pre-installs
+`gitleaks`, `semgrep`, `grype`, `checkov`, `hadolint`. This removes the first-run
+install delay and the load spike that dropped the Remote-SSH session.
+
+---
+
+## Known limitations / gotchas (observed)
+
+- **Browser `daytona login` can return `access_denied`** on some accounts; a second
+  account worked. `daytona ssh` requires the profile written by `daytona login` (not
+  by `--api-key`).
+- **SSH tokens are short-lived** and stored in the `User` field of `~/.ssh/config`;
+  set a long expiry and regenerate from the dashboard when sessions drop.
+- **Opsera MCP config must live in the workspace folder** (`<workspace>/.vscode/mcp.json`),
+  not the home dir — VS Code resolves MCP relative to the open workspace.
+- **`daytona exec` over the Windows shell drops/garbles output** with complex quoting
+  and globbing (the remote default shell is zsh). Prefer simple, single-quoted
+  commands or base64-encoded scripts; read small report files with a plain `cat`
+  and an absolute path.
+- **Scanner install + scan spikes sandbox CPU** (load >30), which can drop Remote-SSH;
+  it auto-recovers. Pre-baking the image avoids this.
 
 ---
 
 ## Cleanup
 
-- Stop:   `daytona stop packguard-scan`
-- Delete: `daytona delete packguard-scan`
+The sandbox is a disposable cloud resource — stop or delete it when done to free resources:
+
+- Stop (keeps it, can restart): `daytona stop packguard-scan`
+- Delete (removes it entirely):  `daytona delete packguard-scan`
+
+Note: deleting also discards the in-sandbox reports. Pull any reports you want to keep
+into the repo first (`daytona exec packguard-scan -- cat <reportPath>`).
