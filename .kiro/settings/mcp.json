@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "opsera": {
+      "url": "https://agent.opsera.ai/mcp",
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
