@@ -1,8 +1,12 @@
 {
   "mcpServers": {
-    "opsera": {
+    "opsera-devsecops": {
+      "type": "http",
       "url": "https://agent.opsera.ai/mcp",
-      "disabled": false,
+      "oauth": {
+        "oauthScopes": []
+      },
+      "disabled": true,
       "autoApprove": []
     }
   }
