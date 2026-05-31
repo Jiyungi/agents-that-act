@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PackGuard — Pitch Deck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet" />
+<style>
+:root{
+  --bg:#06070b; --bg-1:#0a0b11; --panel:#0d0f17; --panel-2:#11131d; --panel-3:#161927;
+  --border:#1c1f2b; --border-bright:#2a2e3f; --grid:rgba(120,130,170,0.05);
+  --text:#e7e9f2; --text-dim:#99a0b8; --text-faint:#5a6079; --text-ghost:#3a3f54;
+  --accent:#6366f1; --accent-bright:#8b90ff; --accent-dim:rgba(99,102,241,0.14);
+  --safe:#34d399; --safe-dim:rgba(52,211,153,0.12);
+  --risky:#f4524d; --risky-dim:rgba(244,82,77,0.13);
+  --warn:#f0b429;
+  --mono:'JetBrains Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{
+  background:var(--bg); color:var(--text); font-family:var(--mono);
+  font-size:16px; line-height:1.55; -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+/* grid backdrop */
+body::before{
+  content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),
+                   linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:46px 46px;
+  mask-image:radial-gradient(ellipse 100% 80% at 50% 30%,#000 35%,transparent 85%);
+}
+
+/* ---------- deck / slides ---------- */
+.deck{position:relative; z-index:1; height:100vh; width:100vw;}
+.slide{
+  position:absolute; inset:0; display:none;
+  flex-direction:column; justify-content:center;
+  padding:64px 88px 96px; opacity:0;
+  animation:fade .45s ease both;
+}
+.slide.active{display:flex; opacity:1;}
+@keyframes fade{from{opacity:0; transform:translateY(10px);}to{opacity:1; transform:none;}}
+
+/* kicker / headings */
+.kicker{
+  font-size:12px; letter-spacing:.32em; text-transform:uppercase;
+  color:var(--accent-bright); margin-bottom:18px; display:flex; align-items:center; gap:10px;
+}
+.kicker::before{content:"▍"; color:var(--accent);}
+h1{font-size:58px; font-weight:800; letter-spacing:-.02em; line-height:1.04;}
+h2{font-size:38px; font-weight:800; letter-spacing:-.015em; line-height:1.1; margin-bottom:8px;}
+h3{font-size:18px; font-weight:700; color:var(--text);}
+.lead{font-size:20px; color:var(--text-dim); max-width:920px; margin-top:14px;}
+.sub{font-size:15px; color:var(--text-faint);}
+strong{color:var(--text); font-weight:700;}
+.accent{color:var(--accent-bright);}
+.safe{color:var(--safe);}
+.risky{color:var(--risky);}
+.warn{color:var(--warn);}
+
+/* prompt line */
+.prompt{font-size:14px; color:var(--text-faint); margin-bottom:26px;}
+.prompt .c{color:var(--safe);}
+
+/* cards / grids */
+.grid{display:grid; gap:18px; margin-top:30px;}
+.g2{grid-template-columns:1fr 1fr;}
+.g3{grid-template-columns:repeat(3,1fr);}
+.g4{grid-template-columns:repeat(4,1fr);}
+.card{
+  background:var(--panel); border:1px solid var(--border); border-radius:8px;
+  padding:22px 22px 20px; position:relative; overflow:hidden;
+}
+.card .n{font-size:12px; color:var(--text-ghost); letter-spacing:.2em; text-transform:uppercase;}
+.card h3{margin:8px 0 7px; font-size:17px;}
+.card p{font-size:14px; color:var(--text-dim); line-height:1.5;}
+.card.hl{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent-dim), 0 14px 40px -22px var(--accent);}
+.card .tag{position:absolute; top:14px; right:16px; font-size:11px; color:var(--accent-bright);}
+
+/* bullet list */
+.list{margin-top:24px; max-width:960px;}
+.list li{
+  list-style:none; display:flex; gap:14px; align-items:flex-start;
+  padding:13px 0; border-bottom:1px solid var(--border);
+}
+.list li:last-child{border-bottom:none;}
+.list .bx{
+  flex:none; width:24px; height:24px; border-radius:5px; background:var(--accent-dim);
+  border:1px solid var(--accent); color:var(--accent-bright);
+  display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700;
+}
+.list .bx.s{background:var(--safe-dim); border-color:var(--safe); color:var(--safe);}
+.list .bx.r{background:var(--risky-dim); border-color:var(--risky); color:var(--risky);}
+.list .tx{font-size:16px;}
+.list .tx span{color:var(--text-dim); font-size:14.5px;}
+
+/* pipeline */
+.flow{display:flex; align-items:stretch; gap:0; margin-top:34px; flex-wrap:wrap;}
+.step{
+  flex:1; min-width:150px; background:var(--panel); border:1px solid var(--border);
+  border-radius:8px; padding:16px 16px 14px; position:relative;
+}
+.step .ph{font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--text-ghost);}
+.step h3{font-size:15px; margin:7px 0 5px;}
+.step p{font-size:12.5px; color:var(--text-dim); line-height:1.45;}
+.step.auto{border-left:3px solid var(--accent);}
+.step.manual{border-left:3px solid var(--warn); background:linear-gradient(180deg,rgba(240,180,41,.06),transparent);}
+.arrow{display:flex; align-items:center; color:var(--text-ghost); font-size:20px; padding:0 8px;}
+
+/* stat row */
+.stats{display:flex; gap:46px; margin-top:34px; flex-wrap:wrap;}
+.stat .v{font-size:46px; font-weight:800; letter-spacing:-.02em; color:var(--accent-bright);}
+.stat .v.s{color:var(--safe);} .stat .v.w{color:var(--warn);}
+.stat .l{font-size:13px; color:var(--text-faint); margin-top:2px; max-width:200px;}
+
+/* sponsor chips */
+.chips{display:flex; flex-wrap:wrap; gap:12px; margin-top:30px;}
+.chip{
+  border:1px solid var(--border-bright); border-radius:6px; padding:14px 18px;
+  background:var(--panel); min-width:190px;
+}
+.chip .nm{font-weight:700; font-size:15px; color:var(--text);}
+.chip .ro{font-size:12.5px; color:var(--text-dim); margin-top:3px;}
+.chip .badge{font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent-bright);}
+
+/* code block */
+.code{
+  background:#05060a; border:1px solid var(--border); border-radius:8px;
+  padding:20px 22px; font-size:14px; line-height:1.7; margin-top:26px; max-width:880px;
+}
+.code .cm{color:var(--text-ghost);}
+.code .ok{color:var(--safe);}
+.code .no{color:var(--risky);}
+.code .kw{color:var(--accent-bright);}
+.code .dim{color:var(--text-faint);}
+
+/* verdict mock */
+.vmock{
+  margin-top:30px; max-width:560px; background:var(--panel); border:1px solid var(--border);
+  border-radius:10px; overflow:hidden;
+}
+.vmock .top{display:flex; align-items:center; justify-content:space-between; padding:18px 22px; border-bottom:1px solid var(--border);}
+.vmock .pkg{font-size:18px; font-weight:700;}
+.vmock .pkg span{color:var(--text-faint); font-weight:400;}
+.vbadge{font-size:13px; font-weight:700; padding:6px 14px; border-radius:5px;}
+.vbadge.s{background:var(--safe-dim); color:var(--safe); border:1px solid var(--safe);}
+.vmock .body{padding:18px 22px; display:flex; gap:26px; align-items:center;}
+.ring{
+  width:78px; height:78px; border-radius:50%;
+  background:conic-gradient(var(--safe) 0% 12%, var(--panel-3) 12% 100%);
+  display:flex; align-items:center; justify-content:center; position:relative;
+}
+.ring::after{content:""; position:absolute; inset:8px; border-radius:50%; background:var(--panel);}
+.ring b{position:relative; z-index:1; font-size:22px;}
+.vmock .meta p{font-size:13px; color:var(--text-dim);}
+.vmock .foot{padding:12px 22px; border-top:1px solid var(--border); font-size:11.5px; color:var(--text-faint);}
+
+/* footer / nav */
+.foot-bar{
+  position:fixed; bottom:0; left:0; right:0; z-index:5;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:16px 32px; font-size:12px; color:var(--text-faint);
+  border-top:1px solid var(--border); background:rgba(6,7,11,.7); backdrop-filter:blur(8px);
+}
+.foot-bar .brand{color:var(--text-dim); font-weight:700; letter-spacing:.05em;}
+.foot-bar .brand b{color:var(--accent-bright);}
+.progress{display:flex; gap:6px;}
+.dot{width:22px; height:3px; border-radius:2px; background:var(--border-bright); cursor:pointer; transition:.2s;}
+.dot.on{background:var(--accent); width:32px;}
+.pageno{min-width:54px; text-align:right;}
+
+/* title slide flourish */
+.logo{
+  display:inline-flex; align-items:center; gap:14px; margin-bottom:8px;
+}
+.logo .mark{
+  width:54px; height:54px; border-radius:11px; border:1px solid var(--accent);
+  background:var(--accent-dim); display:flex; align-items:center; justify-content:center;
+  font-size:28px; box-shadow:0 0 30px -8px var(--accent);
+}
+.tag-row{display:flex; gap:10px; margin-top:30px; flex-wrap:wrap;}
+.pill{font-size:12px; color:var(--text-dim); border:1px solid var(--border-bright); border-radius:20px; padding:6px 15px;}
+.pill b{color:var(--accent-bright);}
+
+.note{margin-top:24px; font-size:13px; color:var(--text-faint); border-left:2px solid var(--border-bright); padding-left:14px; max-width:820px;}
+
+.two-col{display:grid; grid-template-columns:1fr 1fr; gap:40px; margin-top:26px; align-items:start;}
+.col h3{margin-bottom:14px; font-size:14px; letter-spacing:.14em; text-transform:uppercase; color:var(--text-faint);}
+.mini li{list-style:none; font-size:15px; padding:9px 0; border-bottom:1px solid var(--border); color:var(--text-dim);}
+.mini li:last-child{border:none;} .mini li b{color:var(--text);}
+
+.hint{position:fixed; top:18px; right:24px; z-index:5; font-size:11px; color:var(--text-ghost);}
+
+@media (max-width:900px){
+  .slide{padding:40px 28px 90px;}
+  h1{font-size:38px;} h2{font-size:28px;}
+  .g3,.g4,.two-col,.g2{grid-template-columns:1fr;}
+  .flow{flex-direction:column;} .arrow{transform:rotate(90deg); padding:4px 0;}
+}
+</style>
+</head>
+<body>
+<div class="hint">← → / space to navigate · F fullscreen</div>
+<div class="deck" id="deck">
+
+  <!-- 1 — TITLE -->
+  <section class="slide active">
+    <div class="logo">
+      <div class="mark">🛡️</div>
+      <div class="kicker" style="margin:0;">Applied Intelligence Hackathon · Agents That Act</div>
+    </div>
+    <h1>PackGuard</h1>
+    <p class="lead">An agent that reviews an npm package for security risks <strong>before</strong> you install it — by reading the code, never running it.</p>
+    <div class="tag-row">
+      <span class="pill"><b>Track:</b> Cybersecurity</span>
+      <span class="pill"><b>Opsera</b> · DevSecOps MCP</span>
+      <span class="pill"><b>Tigris</b> · storage</span>
+      <span class="pill"><b>Daytona</b> · isolation</span>
+      <span class="pill"><b>Vercel</b> · serverless</span>
+    </div>
+    <p class="note">"Inspect without installing." We download the tarball and read it. We never run <code>npm install</code> and never execute fetched code.</p>
+  </section>
+
+  <!-- 2 — PROBLEM -->
+  <section class="slide">
+    <div class="kicker">The Problem</div>
+    <h2>Installing a package <span class="risky">runs</span> its code — before you've read a line</h2>
+    <p class="lead">npm install executes lifecycle scripts (<code>preinstall</code>, <code>postinstall</code>) the moment you pull a dependency. Supply-chain attacks live exactly there.</p>
+    <div class="stats">
+      <div class="stat"><div class="v risky">~3M</div><div class="l">packages on npm — any can be a typo away from yours</div></div>
+      <div class="stat"><div class="v risky">postinstall</div><div class="l">runs arbitrary code on your machine, automatically</div></div>
+      <div class="stat"><div class="v warn">after install</div><div class="l">most scanners check dependencies you've already pulled</div></div>
+    </div>
+    <p class="note">Developers vet packages by gut feel — download counts, GitHub stars, a quick glance. There's no fast, safe "look before you leap" check that inspects the actual source <em>without</em> the install step that's already dangerous.</p>
+  </section>
+
+  <!-- 3 — SOLUTION -->
+  <section class="slide">
+    <div class="kicker">The Solution</div>
+    <h2>Type a name. Get a verdict. Never touch the install button.</h2>
+    <p class="lead">PackGuard fetches the package source straight from the registry, unpacks it safely, runs a DevSecOps security scan, and returns a shareable <span class="safe">SAFE</span> / <span class="risky">RISKY</span> verdict with the exact risky lines.</p>
+    <div class="grid g3">
+      <div class="card hl"><div class="n">Core property</div><h3>Inspect, don't install</h3><p>Only the <code>.tgz</code> is downloaded and read. No install commands, no lifecycle scripts, no <code>require</code>/<code>eval</code>. Reading code is safe; running it is not.</p></div>
+      <div class="card"><div class="n">Real findings</div><h3>The actual risky lines</h3><p>Every finding shows category, file, line number and the source snippet — not just a number.</p></div>
+      <div class="card"><div class="n">Shared + durable</div><h3>Public verdict + gallery</h3><p>Each scan is stored with a public link and joins a growing browsable library of vetted packages.</p></div>
+    </div>
+  </section>
+
+  <!-- 4 — HOW IT WORKS -->
+  <section class="slide">
+    <div class="kicker">How It Works · Agents That Act</div>
+    <h2>Automated before, automated after — a deliberate human in the middle</h2>
+    <div class="flow">
+      <div class="step auto"><div class="ph">1 · Resolve</div><h3>npm registry</h3><p>Validate name, resolve version + tarball URL. Pure serverless.</p></div>
+      <div class="arrow">→</div>
+      <div class="step auto"><div class="ph">2 · Fetch</div><h3>Safe-untar</h3><p>Download .tgz, extract with path-traversal / symlink guards into an isolated dir.</p></div>
+      <div class="arrow">→</div>
+      <div class="step manual"><div class="ph">3 · Scan</div><h3>Opsera Agent</h3><p>Operator runs <code>/security-scan</code> — Semgrep + Gitleaks static analysis.</p></div>
+      <div class="arrow">→</div>
+      <div class="step auto"><div class="ph">4 · Normalize</div><h3>Verdict</h3><p>Map raw output to schema, fail-safe defaults, score → SAFE/RISKY.</p></div>
+      <div class="arrow">→</div>
+      <div class="step auto"><div class="ph">5 · Store</div><h3>Tigris + gallery</h3><p>Upload report + source, mint public URL, persist record.</p></div>
+    </div>
+    <p class="note">The scan trigger is a human step (Opsera has no public API) — so we engineered an honest agent that automates <strong>everything around it</strong> and survives the pause with a durable contract.</p>
+  </section>
+
+  <!-- 5 — SAFETY -->
+  <section class="slide">
+    <div class="kicker">Why It's Safe</div>
+    <h2>Hardened extraction, proven by property-based tests</h2>
+    <div class="code">
+<span class="cm"># What PackGuard does</span>
+<span class="ok">✓</span> download <span class="kw">left-pad-1.3.0.tgz</span> from registry.npmjs.org
+<span class="ok">✓</span> untar → <span class="dim">./scan-target/</span>  <span class="cm"># treated as read-only data</span>
+<span class="ok">✓</span> reject <span class="dim">../escape</span>, absolute paths, symlink escapes, >250MB / >10k entries
+<span class="ok">✓</span> read every file · run Semgrep + Gitleaks
+
+<span class="cm"># What PackGuard NEVER does</span>
+<span class="no">✗</span> npm install / yarn / pnpm        <span class="no">✗</span> preinstall · postinstall scripts
+<span class="no">✗</span> require() · import() · eval()     <span class="no">✗</span> execute a single fetched byte
+    </div>
+    <p class="note">20 correctness properties (fast-check, 100+ runs each) cover containment, rollback, normalization, fail-safe defaults and verdict derivation. Missing data always defaults to <span class="risky">RISKY</span> — never silently "safe."</p>
+  </section>
+
+  <!-- 6 — DEMO / VERDICT -->
+  <section class="slide">
+    <div class="kicker">The Output</div>
+    <h2>A verdict you can read, trust, and share</h2>
+    <div class="vmock">
+      <div class="top">
+        <div class="pkg">left-pad <span>@ 1.3.0</span></div>
+        <div class="vbadge s">● SAFE</div>
+      </div>
+      <div class="body">
+        <div class="ring"><b class="safe">12</b></div>
+        <div class="meta">
+          <p><strong>Risk score 12 / 100</strong> — below threshold (50)</p>
+          <p>0 findings · 12 files scanned · gitleaks + semgrep clean</p>
+          <p class="safe">No findings reported.</p>
+        </div>
+      </div>
+      <div class="foot">Automated static security review and risk scoring · scan by Opsera (Semgrep + Gitleaks) · static analysis does not detect threats that only appear at run time.</div>
+    </div>
+    <p class="note">Honest framing is enforced in one shared module: every verdict carries the label, the Opsera attribution and the disclaimer — and forbidden over-claims ("malware detection", "behavioral") are blocked by test.</p>
+  </section>
+
+  <!-- 7 — SPONSORS / TECH -->
+  <section class="slide">
+    <div class="kicker">Built On The Stack</div>
+    <h2>Four sponsor tools, each doing real work</h2>
+    <div class="chips">
+      <div class="chip"><div class="badge">Security</div><div class="nm">Opsera MCP</div><div class="ro">DevSecOps Security Scan Agent — Semgrep + Gitleaks via Copilot Chat. The brain of the verdict.</div></div>
+      <div class="chip"><div class="badge">Storage</div><div class="nm">Tigris</div><div class="ro">S3-compatible store for reports + source snapshots; public shareable URLs and the gallery.</div></div>
+      <div class="chip"><div class="badge">Isolation</div><div class="nm">Daytona</div><div class="ro">Proven feasible: fetch + full scan run inside an isolated sandbox — untrusted code never hits a real machine.</div></div>
+      <div class="chip"><div class="badge">Hosting</div><div class="nm">Vercel</div><div class="ro">Serverless API + frontend on a public URL; hybrid with a local agent for filesystem-bound steps.</div></div>
+    </div>
+    <div class="two-col">
+      <div class="col">
+        <h3>Architecture</h3>
+        <ul class="mini">
+          <li><b>web/</b> — Vite + React + TS, terminal-themed UI, state-machine scan flow</li>
+          <li><b>api/</b> — Vercel functions: resolve, scans, scan-records</li>
+          <li><b>packguard-agent/</b> — localhost loopback for fetch + safe-untar + upload</li>
+          <li><b>shared/</b> — canonical contracts + framing, so UI can't drift from backend</li>
+        </ul>
+      </div>
+      <div class="col">
+        <h3>Engineering rigor</h3>
+        <ul class="mini">
+          <li><b>Spec-driven</b> — 17 requirements in EARS, full design doc</li>
+          <li><b>20 properties</b> — property-based tests on all pure logic</li>
+          <li><b>Fail-safe by default</b> — missing data reads as RISKY</li>
+          <li><b>Daytona spike</b> — documented YES with reproduction steps</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 — IMPACT / VISION -->
+  <section class="slide">
+    <div class="kicker">Impact & What's Next</div>
+    <h2>From a hackathon demo to a pre-install firewall for npm</h2>
+    <div class="grid g3">
+      <div class="card"><div class="n">Today</div><h3>Operator-driven demo</h3><p>End-to-end: resolve → fetch → safe-untar → Opsera scan → Tigris → public verdict + gallery. Live on Vercel.</p></div>
+      <div class="card"><div class="n">Next</div><h3>Fully sandboxed</h3><p>Move fetch + scan entirely into Daytona (already proven feasible) so it's self-serve for any package, zero host risk.</p></div>
+      <div class="card hl"><div class="n">Vision</div><h3>CI + IDE guardrail</h3><p>A pre-install check in CI and the editor — block RISKY packages before they ever enter the dependency tree.</p></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="v s">SAFE</div><div class="l">/ RISKY verdict with the actual risky lines</div></div>
+      <div class="stat"><div class="v">0</div><div class="l">fetched bytes ever executed</div></div>
+      <div class="stat"><div class="v w">4</div><div class="l">sponsor tools, each load-bearing</div></div>
+    </div>
+  </section>
+
+  <!-- 9 — CLOSING -->
+  <section class="slide">
+    <div class="logo"><div class="mark">🛡️</div><div class="kicker" style="margin:0;">Thank you</div></div>
+    <h1>Read before you run.</h1>
+    <p class="lead"><strong>PackGuard</strong> — an agent that acts on your behalf to make installing npm packages safer, and is honest about exactly what it checked.</p>
+    <div class="tag-row">
+      <span class="pill"><b>Inspect</b> without installing</span>
+      <span class="pill"><b>Verdict</b> you can share</span>
+      <span class="pill"><b>Honest</b> by design</span>
+    </div>
+    <p class="prompt" style="margin-top:34px;"><span class="c">packguard ❯</span> scan &lt;your-package-name&gt; <span class="cm"># try it live</span></p>
+  </section>
+
+</div>
+
+<div class="foot-bar">
+  <div class="brand">🛡️ <b>PackGuard</b> · Agents That Act</div>
+  <div class="progress" id="progress"></div>
+  <div class="pageno" id="pageno">01 / 09</div>
+</div>
+
+<script>
+const slides=[...document.querySelectorAll('.slide')];
+const progress=document.getElementById('progress');
+const pageno=document.getElementById('pageno');
+let i=0;
+slides.forEach((_,idx)=>{const d=document.createElement('div');d.className='dot';d.onclick=()=>go(idx);progress.appendChild(d);});
+const dots=[...progress.children];
+function go(n){
+  i=Math.max(0,Math.min(slides.length-1,n));
+  slides.forEach((s,idx)=>s.classList.toggle('active',idx===i));
+  dots.forEach((d,idx)=>d.classList.toggle('on',idx===i));
+  pageno.textContent=String(i+1).padStart(2,'0')+' / '+String(slides.length).padStart(2,'0');
+}
+function next(){go(i+1);} function prev(){go(i-1);}
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){e.preventDefault();next();}
+  else if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();prev();}
+  else if(e.key==='Home'){go(0);} else if(e.key==='End'){go(slides.length-1);}
+  else if(e.key.toLowerCase()==='f'){if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen();}
+});
+let sx=null;
+document.addEventListener('touchstart',e=>sx=e.touches[0].clientX,{passive:true});
+document.addEventListener('touchend',e=>{if(sx===null)return;const dx=e.changedTouches[0].clientX-sx;if(Math.abs(dx)>50){dx<0?next():prev();}sx=null;},{passive:true});
+go(0);
+</script>
+</body>
+</html>
