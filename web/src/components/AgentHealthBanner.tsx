@@ -54,22 +54,19 @@ interface AgentPillProps {
 
 export function AgentPill({ health, onClick }: AgentPillProps) {
   let cls = "checking";
-  let label: string = FRAMING.agentChecking;
+  let label: string = "Checking backend…";
   if (health && health.reachable === false) {
     cls = "off";
-    label = "Agent offline";
-  } else if (health && health.reachable === true && !health.codeCliAvailable) {
-    cls = "warn";
-    label = "Agent · no code CLI";
+    label = "Backend offline";
   } else if (health && health.reachable === true) {
     cls = "ok";
-    label = FRAMING.agentOk;
+    label = "Agentic backend · Daytona + Opsera + Tigris";
   }
   return (
     <button
       className={"agent-pill " + cls}
       onClick={onClick}
-      title="Local agent · http://127.0.0.1:3939"
+      title="Agentic scan backend: Daytona sandbox · Opsera scan · Tigris storage"
     >
       <span className="dot"></span>
       {label}

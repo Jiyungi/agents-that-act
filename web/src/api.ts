@@ -212,6 +212,56 @@ export async function getScans(signal?: AbortSignal): Promise<GalleryResult> {
 }
 
 // ============================================================================
+// §4 — Agentic scan (Daytona → Opsera → Tigris), one call, no human step.
+// ============================================================================
+
+export interface AgenticScanResult {
+  scanRecord: ScanRecord;
+  report: ReportSchema | null;
+  steps: { phase: string; message: string }[];
+}
+
+/**
+ * POST /api/scan → runs the full agentic pipeline server-side:
+ *   Daytona isolated sandbox fetch+scan → Opsera static analysis → Tigris.
+ * Long-running (~60–120s); we allow up to 5 minutes.
+ */
+export async function scanPackage(
+  packageName: string,
+  signal?: AbortSignal,
+): Promise<AgenticScanResult> {
+  if (!USE_MOCK) {
+    try {
+      const b = await fetchT(
+        "/api/scan",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ packageName }),
+        },
+        300_000,
+        signal,
+      );
+      return { scanRecord: b.scanRecord, report: b.report ?? null, steps: b.steps ?? [] };
+    } catch (e) {
+      throw toApiError(e, "SCAN_FAILED", "The agentic scan failed.");
+    }
+  }
+  // --- mock ---
+  await delay(1800, signal);
+  const trig = ERROR_TRIGGERS[packageName];
+  if (trig === "INVALID_PACKAGE_NAME" || !isValidName(packageName)) {
+    throw new ApiError("INVALID_PACKAGE_NAME", errorCopy("INVALID_PACKAGE_NAME"));
+  }
+  const record = recordFor(packageName, {});
+  const r = REPORTS[packageName];
+  const report = r
+    ? { packageName: r.packageName, version: record.version || r.version, verdict: r.verdict, riskScore: r.riskScore, findings: r.findings.slice() }
+    : null;
+  return { scanRecord: record, report, steps: [] };
+}
+
+// ============================================================================
 // §4 — Local loopback agent (http://127.0.0.1:3939)
 // ============================================================================
 
@@ -221,12 +271,13 @@ export interface AgentHealth {
   codeCliAvailable: boolean;
 }
 
-/** GET /local/health → { status, codeCliAvailable }. */
+/** GET /api/scans (cheap reachability ping) → agentic backend status. */
 export async function getHealth(signal?: AbortSignal): Promise<AgentHealth> {
   if (!USE_MOCK) {
     try {
-      const b = await fetchT(AGENT + "/local/health", { method: "GET" }, 4000, signal);
-      return { reachable: true, status: b.status, codeCliAvailable: !!b.codeCliAvailable };
+      await fetchT("/api/scans", { method: "GET" }, 8000, signal);
+      // Backend + Tigris reachable. There is no local CLI in the agentic flow.
+      return { reachable: true, status: "ok", codeCliAvailable: true };
     } catch {
       return { reachable: false, status: "down", codeCliAvailable: false };
     }

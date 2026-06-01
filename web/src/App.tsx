@@ -16,7 +16,6 @@ import { usePref } from "./usePref";
 import { Icons } from "./components/Icons";
 import { SearchBar } from "./components/SearchBar";
 import { ScanProgress } from "./components/ScanProgress";
-import { ManualHandoffPanel } from "./components/ManualHandoffPanel";
 import { AgentHealthBanner, AgentPill } from "./components/AgentHealthBanner";
 import { ErrorPanel } from "./components/ErrorPanel";
 import { Gallery } from "./components/Gallery";
@@ -94,9 +93,7 @@ export function App() {
     flow.start(name);
   };
 
-  const showProgress =
-    ["RESOLVING", "FETCHING", "UPLOADING"].indexOf(flow.phase) > -1 ||
-    flow.phase === "AWAITING_SCAN";
+  const showProgress = flow.phase === "SCANNING";
 
   return (
     <>
@@ -128,9 +125,11 @@ export function App() {
             <span className="pg-cursor"></span>
           </h1>
           <p className="tagline">
-            Fetch any npm package, unpack it in a sandbox{" "}
-            <b>without installing or running it</b>, and get a static{" "}
-            <b>SAFE / RISKY</b> verdict before it ever touches your project.
+            Type an npm package. An agent spins up an isolated{" "}
+            <b>Daytona</b> sandbox, fetches and unpacks it{" "}
+            <b>without installing or running it</b>, runs an{" "}
+            <b>Opsera</b> static security scan inside the sandbox, and stores a{" "}
+            <b>SAFE / RISKY</b> verdict in <b>Tigris</b> — all in one click.
           </p>
 
           <SearchBar
@@ -153,15 +152,6 @@ export function App() {
               activeIndex={flow.activeIndex}
               errorIndex={null}
               logLines={flow.log}
-            />
-          )}
-
-          {flow.phase === "AWAITING_SCAN" && flow.contract && (
-            <ManualHandoffPanel
-              contract={flow.contract}
-              busy={false}
-              onUpload={flow.upload}
-              onCancel={flow.cancel}
             />
           )}
 

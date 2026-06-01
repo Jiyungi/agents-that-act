@@ -1,5 +1,10 @@
 {
   "buildCommand": "npm install --prefix web && npm run build --prefix web",
   "outputDirectory": "web/dist",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "functions": {
+    "api/scan.ts": {
+      "maxDuration": 300
+    }
+  }
 }

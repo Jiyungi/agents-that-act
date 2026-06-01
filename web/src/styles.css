@@ -14,10 +14,10 @@
   --grid:         rgba(120,130,170,0.045);
 
   /* text */
-  --text:         #e7e9f2;
-  --text-dim:     #99a0b8;
-  --text-faint:   #5a6079;
-  --text-ghost:   #3a3f54;
+  --text:         #f0f2f8;
+  --text-dim:     #b4bad0;
+  --text-faint:   #8a90a8;
+  --text-ghost:   #626a86;
 
   /* brand + semantic */
   --accent:       #6366f1;
