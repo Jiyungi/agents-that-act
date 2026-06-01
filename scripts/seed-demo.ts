@@ -31,7 +31,7 @@ async function seed(raw: Record<string, unknown>, name: string, version: string)
 
 async function main(): Promise<void> {
   // Clean up leftover test artifacts so the gallery looks polished.
-  for (const stale of [["smoke-test-pkg", "0.0.1"], ["is-odd", "3.0.1"], ["pad-left", "2.1.0"], ["is-even", "1.0.0"]]) {
+  for (const stale of [["smoke-test-pkg", "0.0.1"], ["is-odd", "3.0.1"], ["pad-left", "2.1.0"], ["is-even", "1.0.0"], ["demo-eval-pkg", "1.0.0"]]) {
     await storage.deleteScan(stale[0]!, stale[1]!);
     console.log(`removed stale ${stale[0]}@${stale[1]}`);
   }

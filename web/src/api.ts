@@ -212,6 +212,56 @@ export async function getScans(signal?: AbortSignal): Promise<GalleryResult> {
 }
 
 // ============================================================================
+// §4 — Operator-sandbox flow (Vercel stages → you run Opsera → Vercel polls)
+// ============================================================================
+
+export interface StageResult {
+  sandboxId: string;
+  packageName: string;
+  version: string;
+  scanDir: string;
+  message: string;
+}
+
+/** POST /api/stage → Vercel fetches+unpacks the package into YOUR sandbox. */
+export async function stageInSandbox(
+  sandboxId: string,
+  packageName: string,
+  signal?: AbortSignal,
+): Promise<StageResult> {
+  return await fetchT(
+    "/api/stage",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sandboxId, packageName }),
+    },
+    120_000,
+    signal,
+  );
+}
+
+export interface PollResult {
+  ready: boolean;
+  scanRecord?: ScanRecord;
+  report?: ReportSchema | null;
+  publicReportUrl?: string | null;
+}
+
+/** GET /api/poll → checks the sandbox for the Opsera report; stores to Tigris when found. */
+export async function pollSandbox(
+  sandboxId: string,
+  packageName: string,
+  version: string,
+  signal?: AbortSignal,
+): Promise<PollResult> {
+  const qs = `sandboxId=${encodeURIComponent(sandboxId)}&packageName=${encodeURIComponent(
+    packageName,
+  )}&version=${encodeURIComponent(version)}`;
+  return await fetchT("/api/poll?" + qs, { method: "GET" }, 60_000, signal);
+}
+
+// ============================================================================
 // §4 — Agentic scan (Daytona → Opsera → Tigris), one call, no human step.
 // ============================================================================
 

@@ -20,6 +20,15 @@
 
 const DEFAULT_API_URL = "https://app.daytona.io/api";
 
+/**
+ * The workspace folder INSIDE the sandbox that both Vercel and the operator's
+ * VS Code agree on. Vercel stages the package source under
+ * `${SANDBOX_SCAN_DIR}/package`; the operator opens `${SANDBOX_SCAN_DIR}` in
+ * VS Code Remote-SSH and runs the Opsera scan there, which writes
+ * `*-report.json` files into `${SANDBOX_SCAN_DIR}`. Vercel then polls for them.
+ */
+export const SANDBOX_SCAN_DIR = "/home/daytona/scan-target";
+
 export interface DaytonaConfig {
   apiKey: string;
   apiUrl?: string;
@@ -102,6 +111,78 @@ export class DaytonaClient {
       // best-effort
     }
   }
+
+  /** Verify a sandbox exists and is usable; returns its state, or null. */
+  async getSandboxState(sandboxId: string): Promise<string | null> {
+    try {
+      const res = await fetch(`${this.base}/sandbox/${sandboxId}`, {
+        headers: this.headers(),
+      });
+      if (!res.ok) return null;
+      const body = (await res.json()) as { state?: string };
+      return body.state ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Stage a package INTO an existing sandbox (the one VS Code is connected to):
+   * download the resolved tarball and safe-untar it under
+   * `${SANDBOX_SCAN_DIR}/package`. Never installs or runs the package. Also
+   * clears any previous report files so polling can't read a stale scan.
+   */
+  async stagePackage(
+    sandboxId: string,
+    packageName: string,
+    version: string,
+  ): Promise<ExecResult> {
+    const spec = `${packageName}@${version}`.replace(/'/g, "'\\''");
+    const dir = SANDBOX_SCAN_DIR;
+    const script = [
+      `mkdir -p '${dir}'`,
+      `cd '${dir}'`,
+      // wipe previous package + reports so a new scan starts clean
+      `rm -rf package *-report.json .packguard 2>/dev/null || true`,
+      `URL=$(npm view '${spec}' dist.tarball 2>/dev/null | tail -1)`,
+      `if [ -z "$URL" ]; then echo "RESOLVE_FAILED"; exit 7; fi`,
+      `curl -sL "$URL" -o /tmp/pkg.tgz`,
+      `mkdir -p package && tar -xzf /tmp/pkg.tgz -C package 2>/dev/null || true`,
+      `echo "STAGED:$(find package -type f | wc -l) files in ${dir}/package"`,
+    ].join("\n");
+    return this.exec(sandboxId, script, 120);
+  }
+
+  /**
+   * Poll the sandbox for Opsera scan output. Reads any `*-report.json` the scan
+   * wrote into `${SANDBOX_SCAN_DIR}` and returns them as raw text keyed by
+   * filename. Empty object means the scan hasn't produced reports yet.
+   */
+  async readReports(sandboxId: string): Promise<Record<string, string>> {
+    const dir = SANDBOX_SCAN_DIR;
+    // Emit each report file between sentinels we can split on.
+    const script = [
+      `cd '${dir}' 2>/dev/null || exit 0`,
+      `for f in *-report.json semgrep*.json gitleaks*.json .packguard/report.json; do`,
+      `  if [ -f "$f" ]; then echo "<<<FILE:$f>>>"; cat "$f"; echo "<<<ENDFILE>>>"; fi`,
+      `done`,
+    ].join("\n");
+    const res = await this.exec(sandboxId, script, 60);
+    return parseReportFiles(res.output);
+  }
+}
+
+/** Split sentinel-delimited file output from {@link DaytonaClient.readReports}. */
+export function parseReportFiles(output: string): Record<string, string> {
+  const files: Record<string, string> = {};
+  const re = /<<<FILE:(.+?)>>>([\s\S]*?)<<<ENDFILE>>>/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(output)) !== null) {
+    const name = (m[1] ?? "").trim();
+    const content = (m[2] ?? "").trim();
+    if (name) files[name] = content;
+  }
+  return files;
 }
 
 async function safeText(res: Response): Promise<string> {
