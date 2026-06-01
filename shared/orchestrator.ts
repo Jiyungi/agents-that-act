@@ -157,43 +157,10 @@ export function findingsFromScanners(
   return { findings, riskScore };
 }
 
-/** Map Opsera's report files (semgrep/gitleaks JSON) → findings + risk score. */
-export function findingsFromReportFiles(
-  files: Record<string, string>,
-): { findings: Finding[]; riskScore: number } {
-  // Find the semgrep + gitleaks report contents by filename heuristics.
-  let semgrepJson = '{"results":[]}';
-  let gitleaksJson = "[]";
-  for (const [name, content] of Object.entries(files)) {
-    const lower = name.toLowerCase();
-    if (lower.includes("semgrep")) semgrepJson = content || semgrepJson;
-    else if (lower.includes("gitleaks")) gitleaksJson = content || gitleaksJson;
-  }
-  // If Opsera wrote a single normalized report.json, prefer its findings.
-  const normalized = files["report.json"] ?? files[".packguard/report.json"];
-  if (normalized) {
-    try {
-      const parsed = JSON.parse(normalized) as { findings?: Finding[]; riskScore?: number };
-      if (Array.isArray(parsed.findings)) {
-        const score =
-          typeof parsed.riskScore === "number"
-            ? parsed.riskScore
-            : scoreFromFindings(parsed.findings);
-        return { findings: parsed.findings, riskScore: score };
-      }
-    } catch {
-      /* fall through to scanner parsing */
-    }
-  }
-  return findingsFromScanners(semgrepJson, gitleaksJson);
-}
-
-/** Weighted risk score from a findings list (shared with the scanner path). */
-export function scoreFromFindings(findings: Finding[]): number {
-  const weight: Record<Severity, number> = { LOW: 8, MEDIUM: 20, HIGH: 40, CRITICAL: 60 };
-  const raw = findings.reduce((sum, f) => sum + (weight[f.severity] ?? 20), 0);
-  return Math.min(100, raw);
-}
+/**
+ * Run the full agentic scan: Daytona (isolated fetch+scan) → Opsera-style
+ * static analysis → Tigris storage. Returns the persisted Scan_Record.
+ */
 export async function runAgenticScan(
   packageName: string,
   version: string,

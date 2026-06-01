@@ -34,8 +34,6 @@ export function App() {
   const [gallery, setGallery] = useState<GalleryResult | null>(null);
   const [galleryLoading, setGalleryLoading] = useState(true);
   const [twOpen, setTwOpen] = useState(false);
-  // Daytona sandbox the operator's VS Code is connected to (persisted locally).
-  const [sandboxId, setSandboxId] = usePref<string>("sandboxId", "");
 
   // prefs (demo)
   const [variant, setVariant] = usePref<VariantPref>("variant", "panel");
@@ -56,9 +54,7 @@ export function App() {
     Api.getHealth().then(setHealth);
   }, []);
 
-  const sandboxRef = useRef(sandboxId);
-  sandboxRef.current = sandboxId;
-  const flow = useScanFlow(refreshGallery, () => sandboxRef.current.trim());
+  const flow = useScanFlow(refreshGallery);
 
   // scanline intensity → CSS var
   useEffect(() => {
@@ -97,8 +93,7 @@ export function App() {
     flow.start(name);
   };
 
-  const showProgress =
-    flow.phase === "STAGING" || flow.phase === "AWAITING_SCAN" || flow.phase === "POLLING";
+  const showProgress = flow.phase === "SCANNING";
 
   return (
     <>
@@ -130,32 +125,12 @@ export function App() {
             <span className="pg-cursor"></span>
           </h1>
           <p className="tagline">
-            Type an npm package. <b>Vercel</b> fetches and unpacks it into your
-            isolated <b>Daytona</b> sandbox <b>without installing or running it</b>;
-            you run the <b>Opsera</b> security scan in VS Code; the verdict lands
-            in <b>Tigris</b> and appears below on its own.
+            Type an npm package. An agent spins up an isolated{" "}
+            <b>Daytona</b> sandbox, fetches and unpacks it{" "}
+            <b>without installing or running it</b>, runs an{" "}
+            <b>Opsera</b> static security scan inside the sandbox, and stores a{" "}
+            <b>SAFE / RISKY</b> verdict in <b>Tigris</b> — all in one click.
           </p>
-
-          <div className="sandbox-row" style={{ margin: "0 0 14px" }}>
-            <input
-              className="sandbox-input"
-              type="text"
-              placeholder="Daytona sandbox ID (the one VS Code is connected to)"
-              value={sandboxId}
-              onChange={(e) => setSandboxId(e.target.value)}
-              spellCheck={false}
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                background: "var(--panel-2, #0d0f14)",
-                border: "1px solid var(--border, #232838)",
-                borderRadius: 8,
-                color: "var(--text, #e6e9ef)",
-                fontFamily: "monospace",
-                fontSize: 13,
-              }}
-            />
-          </div>
 
           <SearchBar
             value={query}
@@ -178,34 +153,6 @@ export function App() {
               errorIndex={null}
               logLines={flow.log}
             />
-          )}
-
-          {flow.phase === "AWAITING_SCAN" && flow.staged && (
-            <div className="handoff fade-in" role="region" aria-label="Run the Opsera scan">
-              <div className="handoff-head">
-                <span className="badge">Action required</span>
-                <b>Run the Opsera security scan</b>
-              </div>
-              <ol className="handoff-steps">
-                <li>
-                  In VS Code (connected to sandbox <code>{flow.staged.sandboxId.slice(0, 8)}…</code>),
-                  the package is unpacked at <code>{flow.staged.scanDir}/package</code>.
-                </li>
-                <li>
-                  In <b>Copilot Chat</b> (Agent mode), run:{" "}
-                  <code>run an Opsera security scan on {flow.staged.scanDir}</code>
-                </li>
-                <li>When it finishes, click below — the verdict appears on its own.</li>
-              </ol>
-              <div className="btn-row">
-                <button className="btn btn-primary" onClick={flow.beginPolling}>
-                  <Icons.shield size={14} /> I ran the scan — fetch the verdict
-                </button>
-                <button className="btn btn-ghost" onClick={flow.cancel}>
-                  Cancel
-                </button>
-              </div>
-            </div>
           )}
 
           {flow.phase === "ERROR" && flow.error && (
